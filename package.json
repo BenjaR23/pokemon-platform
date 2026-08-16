@@ -2,6 +2,7 @@
   "name": "pokemon-platform",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Full-stack platform for managing a personal Pokémon collection.",
   "packageManager": "pnpm@11.22.0",
   "scripts": {
@@ -10,10 +11,15 @@
     "lint": "pnpm --recursive run lint",
     "typecheck": "pnpm --recursive run typecheck",
     "test": "pnpm --recursive run test",
+    "lint:root": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "typescript": "^7.0.2"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.67.0"
   }
 }

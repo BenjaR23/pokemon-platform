@@ -25,3 +25,4 @@ packages/    Shared packages
 docs/        Project documentation
 tests/       End-to-end and shared testing resources
 docker/      Docker configuration
+```

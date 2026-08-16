@@ -12,5 +12,8 @@
     "test": "pnpm --recursive run test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }

@@ -1,0 +1,16 @@
+{
+  "name": "pokemon-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Full-stack platform for managing a personal Pokémon collection.",
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "dev": "pnpm --recursive --if-present run dev",
+    "build": "pnpm --recursive run build",
+    "lint": "pnpm --recursive run lint",
+    "typecheck": "pnpm --recursive run typecheck",
+    "test": "pnpm --recursive run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  }
+}

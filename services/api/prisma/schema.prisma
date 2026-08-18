@@ -27,6 +27,7 @@ model PokemonSpecies {
   pokemonSpeciesNames PokemonSpeciesName[]
   varieties           PokemonVariety[]
   userCollections     UserCollection[]
+  userFavorites       UserFavorite[]
 }
 
 model Language {
@@ -388,6 +389,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   collection UserCollection[]
+  favorites  UserFavorite[]
 
   @@map("users")
 }
@@ -421,4 +423,18 @@ model UserCollectionForm {
 
   @@unique([userCollectionId, formId])
   @@map("user_collection_forms")
+}
+
+model UserFavorite {
+  id        String @id @default(uuid())
+  userId    String @map("user_id")
+  speciesId String @map("species_id")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  species PokemonSpecies @relation(fields: [speciesId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, speciesId])
+  @@map("user_favorites")
 }

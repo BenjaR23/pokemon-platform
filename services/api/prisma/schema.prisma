@@ -60,6 +60,7 @@ model PokemonVariety {
   types                   PokemonVarietyType[]
   pokemonVarietyAbilities PokemonVarietyAbility[]
   pokemonVarietyStats     PokemonVarietyStats?
+  pokemonAcquisitions     PokemonAcquisition[]
 }
 
 model PokemonForm {
@@ -125,8 +126,9 @@ model Game {
   externalId Int    @unique @map("external_id")
   name       String
 
-  versionGroupId String       @map("version_group_id")
-  versionGroup   VersionGroup @relation(fields: [versionGroupId], references: [id], onDelete: Restrict)
+  versionGroupId      String               @map("version_group_id")
+  versionGroup        VersionGroup         @relation(fields: [versionGroupId], references: [id], onDelete: Restrict)
+  pokemonAcquisitions PokemonAcquisition[]
 
   @@map("games")
 }
@@ -268,4 +270,28 @@ model EvolutionRule {
   item      Item?     @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
   @@map("evolution_rules")
+}
+
+model AcquisitionType {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  acquisitions PokemonAcquisition[]
+
+  @@map("acquisition_types")
+}
+
+model PokemonAcquisition {
+  id                String @id @default(uuid())
+  varietyId         String @map("variety_id")
+  gameId            String @map("game_id")
+  acquisitionTypeId String @map("acquisition_type_id")
+
+  variety         PokemonVariety  @relation(fields: [varietyId], references: [id], onDelete: Restrict)
+  game            Game            @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  AcquisitionType AcquisitionType @relation(fields: [acquisitionTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([varietyId, gameId, acquisitionTypeId])
+  @@map("pokemon_acquisitions")
 }

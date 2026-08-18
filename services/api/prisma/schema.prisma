@@ -292,7 +292,7 @@ model PokemonAcquisition {
 
   variety         PokemonVariety  @relation(fields: [varietyId], references: [id], onDelete: Restrict)
   game            Game            @relation(fields: [gameId], references: [id], onDelete: Restrict)
-  AcquisitionType AcquisitionType @relation(fields: [acquisitionTypeId], references: [id], onDelete: Restrict)
+  acquisitionType AcquisitionType @relation(fields: [acquisitionTypeId], references: [id], onDelete: Restrict)
 
   encounters PokemonEncounter[]
 
@@ -313,7 +313,7 @@ model EncounterMethod {
 model PokemonEncounter {
   id             String @id @default(uuid())
   acquisitionId  String @map("acquisition_id")
-  locationAreaId String @map("locatiopn_area_id")
+  locationAreaId String @map("location_area_id")
   methodId       String @map("method_id")
 
   acquisition  PokemonAcquisition @relation(fields: [acquisitionId], references: [id], onDelete: Cascade)
@@ -373,4 +373,16 @@ model PokemonEncounterDetailCondition {
 
   @@id([encounterDetailId, conditionValueId])
   @@map("pokemon_encounter_detail_conditions")
+}
+
+model User {
+  id String @id @default(uuid())
+
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
 }

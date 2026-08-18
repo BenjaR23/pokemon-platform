@@ -1,0 +1,271 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model PokemonSpecies {
+  id               String  @id @default(uuid())
+  externalId       Int     @unique
+  name             String
+  generationId     String?
+  evolutionChainId String?
+
+  evolutionChain EvolutionChain? @relation(fields: [evolutionChainId], references: [id], onDelete: SetNull)
+  evolutionsFrom Evolution[]     @relation("EvolutionFrom")
+  evolutionsTo   Evolution[]     @relation("EvolutionTo")
+
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  pokemonSpeciesNames PokemonSpeciesName[]
+  varieties           PokemonVariety[]
+}
+
+model Language {
+  id         String @id @default(uuid())
+  externalId Int    @unique
+  name       String
+
+  speciesNames PokemonSpeciesName[]
+}
+
+model PokemonSpeciesName {
+  id         String @id @default(uuid())
+  speciesId  String
+  languageId String
+  name       String
+
+  species  PokemonSpecies @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+  language Language       @relation(fields: [languageId], references: [id], onDelete: Restrict)
+
+  @@unique([speciesId, languageId])
+}
+
+model PokemonVariety {
+  id         String  @id @default(uuid())
+  externalId Int     @unique
+  name       String
+  isDefault  Boolean @default(false)
+  speciesId  String
+
+  species                 PokemonSpecies          @relation(fields: [speciesId], references: [id], onDelete: Restrict)
+  forms                   PokemonForm[]
+  types                   PokemonVarietyType[]
+  pokemonVarietyAbilities PokemonVarietyAbility[]
+  pokemonVarietyStats     PokemonVarietyStats?
+}
+
+model PokemonForm {
+  id             String  @id @default(uuid())
+  externalId     Int     @unique
+  name           String
+  formName       String?
+  isDefault      Boolean @default(false)
+  isBattleOnly   Boolean @default(false)
+  isMega         Boolean @default(false)
+  isGigantamax   Boolean @default(false)
+  varietyId      String
+  versionGroupId String?
+
+  variety PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+}
+
+model Type {
+  id         String @id @default(uuid())
+  externalId Int    @unique
+  name       String
+
+  varieties PokemonVarietyType[]
+}
+
+model PokemonVarietyType {
+  id        String @id @default(uuid())
+  varietyId String
+  typeId    String
+  slot      Int
+
+  variety PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+  type    Type           @relation(fields: [typeId], references: [id], onDelete: Restrict)
+
+  @@unique([varietyId, typeId])
+  @@unique([varietyId, slot])
+}
+
+model Generation {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  versionGroups VersionGroup[]
+
+  @@map("generations")
+}
+
+model VersionGroup {
+  id           String     @id @default(uuid())
+  externalId   Int        @unique @map("external_id")
+  name         String
+  generationId String     @map("generation_id")
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Restrict)
+
+  games Game[]
+
+  @@map("version_groups")
+}
+
+model Game {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  versionGroupId String       @map("version_group_id")
+  versionGroup   VersionGroup @relation(fields: [versionGroupId], references: [id], onDelete: Restrict)
+
+  @@map("games")
+}
+
+model Region {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  locations Location[]
+
+  @@map("regions")
+}
+
+model Location {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  regionId String @map("region_id")
+  region   Region @relation(fields: [regionId], references: [id], onDelete: Restrict)
+
+  areas LocationArea[]
+
+  @@map("locations")
+}
+
+model LocationArea {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  locationId String   @map("location_id")
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@map("location_areas")
+}
+
+model Ability {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  varieties PokemonVarietyAbility[]
+
+  @@map("abilities")
+}
+
+model PokemonVarietyAbility {
+  varietyId String
+  abilityId String
+
+  variety PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+
+  ability Ability @relation(fields: [abilityId], references: [id], onDelete: Restrict)
+
+  @@id([varietyId, abilityId])
+  @@map("pokemon_variety_abilities")
+}
+
+model PokemonVarietyStats {
+  varietyId String @id @map("variety_id")
+
+  hp             Int
+  attack         Int
+  defense        Int
+  specialAttack  Int @map("special_attack")
+  specialDefense Int @map("special_defense")
+  speed          Int
+
+  variety PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+
+  @@map("pokemon_variety_stats")
+}
+
+model EvolutionChain {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+
+  species   PokemonSpecies[]
+  evolution Evolution[]
+
+  @@map("evolution_chains")
+}
+
+model EvolutionTrigger {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  evolutions Evolution[]
+
+  @@map("evolution_triggers")
+}
+
+model Item {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  evolutionRules EvolutionRule[]
+
+  @@map("items")
+}
+
+model Evolution {
+  id String @id @default(uuid())
+
+  chainId       String @map("chain_id")
+  fromSpeciesId String @map("from_species_id")
+  toSpeciesId   String @map("to_species_id")
+  triggerId     String @map("trigger_id")
+
+  chain       EvolutionChain   @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  fromSpecies PokemonSpecies   @relation("EvolutionFrom", fields: [fromSpeciesId], references: [id], onDelete: Restrict)
+  toSpecies   PokemonSpecies   @relation("EvolutionTo", fields: [toSpeciesId], onDelete: Restrict, references: [id])
+  trigger     EvolutionTrigger @relation(fields: [triggerId], references: [id], onDelete: Restrict)
+
+  rules EvolutionRule[]
+
+  @@map("evolutions")
+}
+
+model EvolutionRule {
+  id String @id @default(uuid())
+
+  evolutionId    String  @map("evolution_id")
+  minLevel       Int?
+  itemId         String?
+  minHappiness   Int?
+  minBeauty      Int?
+  minAffection   Int?
+  timeOfDay      String?
+  knownMoveId    String?
+  knownTypeId    String?
+  locationAreaId String?
+
+  evolution Evolution @relation(fields: [evolutionId], references: [id], onDelete: Cascade)
+  item      Item?     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@map("evolution_rules")
+}

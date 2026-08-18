@@ -26,6 +26,7 @@ model PokemonSpecies {
   updatedAt           DateTime             @updatedAt
   pokemonSpeciesNames PokemonSpeciesName[]
   varieties           PokemonVariety[]
+  userCollections     UserCollection[]
 }
 
 model Language {
@@ -76,6 +77,8 @@ model PokemonForm {
   versionGroupId String?
 
   variety PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+
+  UserCollectionForms UserCollectionForm[]
 }
 
 model Type {
@@ -384,5 +387,38 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  collection UserCollection[]
+
   @@map("users")
+}
+
+model UserCollection {
+  id        String @id @default(uuid())
+  userId    String @map("user_id")
+  speciesId String @map("species_id")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  species PokemonSpecies @relation(fields: [speciesId], references: [id], onDelete: Restrict)
+
+  forms UserCollectionForm[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, speciesId])
+  @@map("user_collection")
+}
+
+model UserCollectionForm {
+  id               String @id @default(uuid())
+  userCollectionId String @map("user_collection_id")
+  formId           String @map("form_id")
+
+  UserCollection UserCollection @relation(fields: [userCollectionId], references: [id], onDelete: Cascade)
+  form           PokemonForm    @relation(fields: [formId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userCollectionId, formId])
+  @@map("user_collection_forms")
 }

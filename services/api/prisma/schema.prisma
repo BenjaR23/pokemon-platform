@@ -164,6 +164,8 @@ model LocationArea {
   locationId String   @map("location_id")
   location   Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
+  encounters PokemonEncounter[]
+
   @@map("location_areas")
 }
 
@@ -292,6 +294,83 @@ model PokemonAcquisition {
   game            Game            @relation(fields: [gameId], references: [id], onDelete: Restrict)
   AcquisitionType AcquisitionType @relation(fields: [acquisitionTypeId], references: [id], onDelete: Restrict)
 
+  encounters PokemonEncounter[]
+
   @@unique([varietyId, gameId, acquisitionTypeId])
   @@map("pokemon_acquisitions")
+}
+
+model EncounterMethod {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  encounters PokemonEncounter[]
+
+  @@map("encounter_methods")
+}
+
+model PokemonEncounter {
+  id             String @id @default(uuid())
+  acquisitionId  String @map("acquisition_id")
+  locationAreaId String @map("locatiopn_area_id")
+  methodId       String @map("method_id")
+
+  acquisition  PokemonAcquisition @relation(fields: [acquisitionId], references: [id], onDelete: Cascade)
+  locationArea LocationArea       @relation(fields: [locationAreaId], references: [id], onDelete: Restrict)
+  method       EncounterMethod    @relation(fields: [methodId], references: [id], onDelete: Restrict)
+
+  details PokemonEncounterDetail[]
+
+  @@unique([acquisitionId, locationAreaId, methodId])
+  @@map("pokemon_encounters")
+}
+
+model PokemonEncounterDetail {
+  id          String @id @default(uuid())
+  encounterId String @map("encounter_id")
+
+  minLevel Int
+  maxLevel Int
+  chance   Int?
+
+  encounter PokemonEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  conditions PokemonEncounterDetailCondition[]
+
+  @@map("pokemon_encounter_details")
+}
+
+model EncounterCondition {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  values EncounterConditionValue[]
+
+  @@map("encounter_conditions")
+}
+
+model EncounterConditionValue {
+  id          String @id @default(uuid())
+  externalId  Int    @unique @map("external_id")
+  name        String
+  conditionId String @map("condition_id")
+
+  condition                        EncounterCondition                @relation(fields: [conditionId], references: [id], onDelete: Restrict)
+  pokemonEncounterDetailConditions PokemonEncounterDetailCondition[]
+
+  @@unique([conditionId, name])
+  @@map("encounter_condition_values")
+}
+
+model PokemonEncounterDetailCondition {
+  encounterDetailId String @map("encounter_detail_id")
+  conditionValueId  String @map("condition_value_id")
+
+  encounterDetail PokemonEncounterDetail  @relation(fields: [encounterDetailId], references: [id], onDelete: Cascade)
+  conditionValue  EncounterConditionValue @relation(fields: [conditionValueId], references: [id], onDelete: Restrict)
+
+  @@id([encounterDetailId, conditionValueId])
+  @@map("pokemon_encounter_detail_conditions")
 }

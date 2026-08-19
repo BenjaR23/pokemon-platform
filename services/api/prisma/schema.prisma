@@ -483,3 +483,17 @@ model CollectionProfilePreference {
 
   @@map("collection_profile_preferences")
 }
+
+model SyncRun {
+  id String @id @default(uuid())
+
+  source     String
+  status     String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  error      String?
+
+  createdAt DateTime @default(now())
+
+  @@map("sync_runs")
+}

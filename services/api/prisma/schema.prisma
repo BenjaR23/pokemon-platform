@@ -130,9 +130,11 @@ model Game {
   externalId Int    @unique @map("external_id")
   name       String
 
-  versionGroupId      String               @map("version_group_id")
-  versionGroup        VersionGroup         @relation(fields: [versionGroupId], references: [id], onDelete: Restrict)
+  versionGroupId String       @map("version_group_id")
+  versionGroup   VersionGroup @relation(fields: [versionGroupId], references: [id], onDelete: Restrict)
+
   pokemonAcquisitions PokemonAcquisition[]
+  profileGames        CollectionProfileGame[]
 
   @@map("games")
 }
@@ -390,6 +392,7 @@ model User {
 
   collection UserCollection[]
   favorites  UserFavorite[]
+  profiles   CollectionProfile[]
 
   @@map("users")
 }
@@ -437,4 +440,46 @@ model UserFavorite {
 
   @@unique([userId, speciesId])
   @@map("user_favorites")
+}
+
+model CollectionProfile {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  name   String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  games       CollectionProfileGame[]
+  preferences CollectionProfilePreference?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@map("collection_profiles")
+}
+
+model CollectionProfileGame {
+  profileId String @map("profile_id")
+  gameId    String @map("game_id")
+
+  profile CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  game    Game              @relation(fields: [gameId], references: [id], onDelete: Restrict)
+
+  @@id([profileId, gameId])
+  @@map("collection_profile_games")
+}
+
+model CollectionProfilePreference {
+  id        String @id @default(uuid())
+  profileId String @unique @map("profile_id")
+
+  includeForms       Boolean @default(true)
+  includeVariants    Boolean @default(true)
+  includeEventOnly   Boolean @default(false)
+  includeUnavailable Boolean @default(false)
+
+  profile CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("collection_profile_preferences")
 }

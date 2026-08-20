@@ -1,11 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -13,103 +9,96 @@ datasource db {
 }
 
 model PokemonSpecies {
-  id               String  @id @default(uuid())
-  externalId       Int     @unique
-  name             String
-  generationId     String?
-  evolutionChainId String?
-
-  evolutionChain EvolutionChain? @relation(fields: [evolutionChainId], references: [id], onDelete: SetNull)
-  evolutionsFrom Evolution[]     @relation("EvolutionFrom")
-  evolutionsTo   Evolution[]     @relation("EvolutionTo")
-
+  id                  String               @id @default(uuid())
+  externalId          Int                  @unique
+  name                String
+  generationId        String?
+  evolutionChainId    String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+  generation Generation? @relation(fields: [generationId], references: [id])
+  evolutionChain      EvolutionChain?      @relation(fields: [evolutionChainId], references: [id])
   pokemonSpeciesNames PokemonSpeciesName[]
   varieties           PokemonVariety[]
+  evolutionsFrom      Evolution[]          @relation("EvolutionFrom")
+  evolutionsTo        Evolution[]          @relation("EvolutionTo")
   userCollections     UserCollection[]
   userFavorites       UserFavorite[]
 }
 
 model Language {
-  id         String @id @default(uuid())
-  externalId Int    @unique
-  name       String
-
+  id           String               @id @default(uuid())
+  externalId   Int                  @unique
+  name         String
   speciesNames PokemonSpeciesName[]
 }
 
 model PokemonSpeciesName {
-  id         String @id @default(uuid())
+  id         String         @id @default(uuid())
   speciesId  String
   languageId String
   name       String
-
-  species  PokemonSpecies @relation(fields: [speciesId], references: [id], onDelete: Cascade)
-  language Language       @relation(fields: [languageId], references: [id], onDelete: Restrict)
+  language   Language       @relation(fields: [languageId], references: [id])
+  species    PokemonSpecies @relation(fields: [speciesId], references: [id], onDelete: Cascade)
 
   @@unique([speciesId, languageId])
 }
 
 model PokemonVariety {
-  id         String  @id @default(uuid())
-  externalId Int     @unique
-  name       String
-  isDefault  Boolean @default(false)
-  speciesId  String
-
-  species                 PokemonSpecies          @relation(fields: [speciesId], references: [id], onDelete: Restrict)
+  id                      String                  @id @default(uuid())
+  externalId              Int                     @unique
+  name                    String
+  isDefault               Boolean                 @default(false)
+  speciesId               String
   forms                   PokemonForm[]
+  species                 PokemonSpecies          @relation(fields: [speciesId], references: [id])
   types                   PokemonVarietyType[]
+  pokemonAcquisitions     PokemonAcquisition[]
   pokemonVarietyAbilities PokemonVarietyAbility[]
   pokemonVarietyStats     PokemonVarietyStats?
-  pokemonAcquisitions     PokemonAcquisition[]
 }
 
 model PokemonForm {
-  id             String  @id @default(uuid())
-  externalId     Int     @unique
-  name           String
-  formName       String?
-  isDefault      Boolean @default(false)
-  isBattleOnly   Boolean @default(false)
-  isMega         Boolean @default(false)
-  isGigantamax   Boolean @default(false)
-  varietyId      String
-  versionGroupId String?
-
-  variety PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
-
+  id                  String               @id @default(uuid())
+  externalId          Int                  @unique
+  name                String
+  formName            String?
+  isDefault           Boolean              @default(false)
+  isBattleOnly        Boolean              @default(false)
+  isMega              Boolean              @default(false)
+  isGigantamax        Boolean              @default(false)
+  varietyId           String
+  versionGroupId      String?
+  variety             PokemonVariety       @relation(fields: [varietyId], references: [id], onDelete: Cascade)
   UserCollectionForms UserCollectionForm[]
 }
 
 model Type {
-  id         String @id @default(uuid())
-  externalId Int    @unique
+  id         String               @id @default(uuid())
+  externalId Int                  @unique
   name       String
-
-  varieties PokemonVarietyType[]
+  varieties  PokemonVarietyType[]
 }
 
 model PokemonVarietyType {
-  id        String @id @default(uuid())
+  id        String         @id @default(uuid())
   varietyId String
   typeId    String
   slot      Int
-
-  variety PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
-  type    Type           @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  type      Type           @relation(fields: [typeId], references: [id])
+  variety   PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
 
   @@unique([varietyId, typeId])
   @@unique([varietyId, slot])
 }
 
 model Generation {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
-  name       String
+  id            String         @id @default(uuid())
+  externalId    Int            @unique @map("external_id")
+  name          String
 
   versionGroups VersionGroup[]
+  species PokemonSpecies[]
 
   @@map("generations")
 }
@@ -119,69 +108,60 @@ model VersionGroup {
   externalId   Int        @unique @map("external_id")
   name         String
   generationId String     @map("generation_id")
-  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Restrict)
-
-  games Game[]
+  games        Game[]
+  generation   Generation @relation(fields: [generationId], references: [id])
 
   @@map("version_groups")
 }
 
 model Game {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
-  name       String
-
-  versionGroupId String       @map("version_group_id")
-  versionGroup   VersionGroup @relation(fields: [versionGroupId], references: [id], onDelete: Restrict)
-
-  pokemonAcquisitions PokemonAcquisition[]
+  id                  String                  @id @default(uuid())
+  externalId          Int                     @unique @map("external_id")
+  name                String
+  versionGroupId      String                  @map("version_group_id")
   profileGames        CollectionProfileGame[]
+  versionGroup        VersionGroup            @relation(fields: [versionGroupId], references: [id])
+  pokemonAcquisitions PokemonAcquisition[]
 
   @@map("games")
 }
 
 model Region {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
+  id         String     @id @default(uuid())
+  externalId Int        @unique @map("external_id")
   name       String
-
-  locations Location[]
+  locations  Location[]
 
   @@map("regions")
 }
 
 model Location {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
+  id         String         @id @default(uuid())
+  externalId Int            @unique @map("external_id")
   name       String
-
-  regionId String @map("region_id")
-  region   Region @relation(fields: [regionId], references: [id], onDelete: Restrict)
-
-  areas LocationArea[]
+  regionId   String         @map("region_id")
+  areas      LocationArea[]
+  region     Region         @relation(fields: [regionId], references: [id])
 
   @@map("locations")
 }
 
 model LocationArea {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
+  id         String             @id @default(uuid())
+  externalId Int                @unique @map("external_id")
   name       String
-
-  locationId String   @map("location_id")
-  location   Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
-
+  locationId String             @map("location_id")
+  location   Location           @relation(fields: [locationId], references: [id])
   encounters PokemonEncounter[]
 
   @@map("location_areas")
 }
 
 model Ability {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
+  id         String                  @id @default(uuid())
+  externalId Int                     @unique @map("external_id")
   name       String
-
-  varieties PokemonVarietyAbility[]
+  varieties  PokemonVarietyAbility[]
 
   @@map("abilities")
 }
@@ -189,82 +169,71 @@ model Ability {
 model PokemonVarietyAbility {
   varietyId String
   abilityId String
-
-  variety PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
-
-  ability Ability @relation(fields: [abilityId], references: [id], onDelete: Restrict)
+  ability   Ability        @relation(fields: [abilityId], references: [id])
+  variety   PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
 
   @@id([varietyId, abilityId])
   @@map("pokemon_variety_abilities")
 }
 
 model PokemonVarietyStats {
-  varietyId String @id @map("variety_id")
-
+  varietyId      String         @id @map("variety_id")
   hp             Int
   attack         Int
   defense        Int
-  specialAttack  Int @map("special_attack")
-  specialDefense Int @map("special_defense")
+  specialAttack  Int            @map("special_attack")
+  specialDefense Int            @map("special_defense")
   speed          Int
-
-  variety PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
+  variety        PokemonVariety @relation(fields: [varietyId], references: [id], onDelete: Cascade)
 
   @@map("pokemon_variety_stats")
 }
 
 model EvolutionChain {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
-
-  species   PokemonSpecies[]
-  evolution Evolution[]
+  id         String           @id @default(uuid())
+  externalId Int              @unique @map("external_id")
+  species    PokemonSpecies[]
+  evolution  Evolution[]
 
   @@map("evolution_chains")
 }
 
 model EvolutionTrigger {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
+  id         String      @id @default(uuid())
+  externalId Int         @unique @map("external_id")
   name       String
-
   evolutions Evolution[]
 
   @@map("evolution_triggers")
 }
 
 model Item {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
-  name       String
-
+  id             String          @id @default(uuid())
+  externalId     Int             @unique @map("external_id")
+  name           String
   evolutionRules EvolutionRule[]
 
   @@map("items")
 }
 
 model Evolution {
-  id String @id @default(uuid())
-
-  chainId       String @map("chain_id")
-  fromSpeciesId String @map("from_species_id")
-  toSpeciesId   String @map("to_species_id")
-  triggerId     String @map("trigger_id")
-
-  chain       EvolutionChain   @relation(fields: [chainId], references: [id], onDelete: Cascade)
-  fromSpecies PokemonSpecies   @relation("EvolutionFrom", fields: [fromSpeciesId], references: [id], onDelete: Restrict)
-  toSpecies   PokemonSpecies   @relation("EvolutionTo", fields: [toSpeciesId], onDelete: Restrict, references: [id])
-  trigger     EvolutionTrigger @relation(fields: [triggerId], references: [id], onDelete: Restrict)
-
-  rules EvolutionRule[]
+  id            String           @id @default(uuid())
+  chainId       String           @map("chain_id")
+  fromSpeciesId String           @map("from_species_id")
+  toSpeciesId   String           @map("to_species_id")
+  triggerId     String           @map("trigger_id")
+  rules         EvolutionRule[]
+  chain         EvolutionChain   @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  fromSpecies   PokemonSpecies   @relation("EvolutionFrom", fields: [fromSpeciesId], references: [id])
+  toSpecies     PokemonSpecies   @relation("EvolutionTo", fields: [toSpeciesId], references: [id])
+  trigger       EvolutionTrigger @relation(fields: [triggerId], references: [id])
 
   @@map("evolutions")
 }
 
 model EvolutionRule {
-  id String @id @default(uuid())
-
-  evolutionId    String  @map("evolution_id")
+  id             String    @id @default(uuid())
+  evolutionId    String    @map("evolution_id")
   minLevel       Int?
   itemId         String?
   minHappiness   Int?
@@ -274,97 +243,85 @@ model EvolutionRule {
   knownMoveId    String?
   knownTypeId    String?
   locationAreaId String?
-
-  evolution Evolution @relation(fields: [evolutionId], references: [id], onDelete: Cascade)
-  item      Item?     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  evolution      Evolution @relation(fields: [evolutionId], references: [id], onDelete: Cascade)
+  item           Item?     @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
   @@map("evolution_rules")
 }
 
 model AcquisitionType {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
-  name       String
-
+  id           String               @id @default(uuid())
+  externalId   Int                  @unique @map("external_id")
+  name         String
   acquisitions PokemonAcquisition[]
 
   @@map("acquisition_types")
 }
 
 model PokemonAcquisition {
-  id                String @id @default(uuid())
-  varietyId         String @map("variety_id")
-  gameId            String @map("game_id")
-  acquisitionTypeId String @map("acquisition_type_id")
-
-  variety         PokemonVariety  @relation(fields: [varietyId], references: [id], onDelete: Restrict)
-  game            Game            @relation(fields: [gameId], references: [id], onDelete: Restrict)
-  acquisitionType AcquisitionType @relation(fields: [acquisitionTypeId], references: [id], onDelete: Restrict)
-
-  encounters PokemonEncounter[]
+  id                String             @id @default(uuid())
+  varietyId         String             @map("variety_id")
+  gameId            String             @map("game_id")
+  acquisitionTypeId String             @map("acquisition_type_id")
+  acquisitionType   AcquisitionType    @relation(fields: [acquisitionTypeId], references: [id])
+  game              Game               @relation(fields: [gameId], references: [id])
+  variety           PokemonVariety     @relation(fields: [varietyId], references: [id])
+  encounters        PokemonEncounter[]
 
   @@unique([varietyId, gameId, acquisitionTypeId])
   @@map("pokemon_acquisitions")
 }
 
 model EncounterMethod {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
+  id         String             @id @default(uuid())
+  externalId Int                @unique @map("external_id")
   name       String
-
   encounters PokemonEncounter[]
 
   @@map("encounter_methods")
 }
 
 model PokemonEncounter {
-  id             String @id @default(uuid())
-  acquisitionId  String @map("acquisition_id")
-  locationAreaId String @map("location_area_id")
-  methodId       String @map("method_id")
-
-  acquisition  PokemonAcquisition @relation(fields: [acquisitionId], references: [id], onDelete: Cascade)
-  locationArea LocationArea       @relation(fields: [locationAreaId], references: [id], onDelete: Restrict)
-  method       EncounterMethod    @relation(fields: [methodId], references: [id], onDelete: Restrict)
-
-  details PokemonEncounterDetail[]
+  id             String                   @id @default(uuid())
+  acquisitionId  String                   @map("acquisition_id")
+  locationAreaId String                   @map("location_area_id")
+  methodId       String                   @map("method_id")
+  details        PokemonEncounterDetail[]
+  acquisition    PokemonAcquisition       @relation(fields: [acquisitionId], references: [id], onDelete: Cascade)
+  locationArea   LocationArea             @relation(fields: [locationAreaId], references: [id])
+  method         EncounterMethod          @relation(fields: [methodId], references: [id])
 
   @@unique([acquisitionId, locationAreaId, methodId])
   @@map("pokemon_encounters")
 }
 
 model PokemonEncounterDetail {
-  id          String @id @default(uuid())
-  encounterId String @map("encounter_id")
-
-  minLevel Int
-  maxLevel Int
-  chance   Int?
-
-  encounter PokemonEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
-
-  conditions PokemonEncounterDetailCondition[]
+  id          String                            @id @default(uuid())
+  encounterId String                            @map("encounter_id")
+  minLevel    Int
+  maxLevel    Int
+  chance      Int?
+  conditions  PokemonEncounterDetailCondition[]
+  encounter   PokemonEncounter                  @relation(fields: [encounterId], references: [id], onDelete: Cascade)
 
   @@map("pokemon_encounter_details")
 }
 
 model EncounterCondition {
-  id         String @id @default(uuid())
-  externalId Int    @unique @map("external_id")
+  id         String                    @id @default(uuid())
+  externalId Int                       @unique @map("external_id")
   name       String
-
-  values EncounterConditionValue[]
+  values     EncounterConditionValue[]
 
   @@map("encounter_conditions")
 }
 
 model EncounterConditionValue {
-  id          String @id @default(uuid())
-  externalId  Int    @unique @map("external_id")
-  name        String
-  conditionId String @map("condition_id")
-
-  condition                        EncounterCondition                @relation(fields: [conditionId], references: [id], onDelete: Restrict)
+  id                               String                            @id @default(uuid())
+  externalId                       Int                               @unique @map("external_id")
+  name                             String
+  conditionId                      String                            @map("condition_id")
+  condition                        EncounterCondition                @relation(fields: [conditionId], references: [id])
   pokemonEncounterDetailConditions PokemonEncounterDetailCondition[]
 
   @@unique([conditionId, name])
@@ -372,129 +329,111 @@ model EncounterConditionValue {
 }
 
 model PokemonEncounterDetailCondition {
-  encounterDetailId String @map("encounter_detail_id")
-  conditionValueId  String @map("condition_value_id")
-
-  encounterDetail PokemonEncounterDetail  @relation(fields: [encounterDetailId], references: [id], onDelete: Cascade)
-  conditionValue  EncounterConditionValue @relation(fields: [conditionValueId], references: [id], onDelete: Restrict)
+  encounterDetailId String                  @map("encounter_detail_id")
+  conditionValueId  String                  @map("condition_value_id")
+  conditionValue    EncounterConditionValue @relation(fields: [conditionValueId], references: [id])
+  encounterDetail   PokemonEncounterDetail  @relation(fields: [encounterDetailId], references: [id], onDelete: Cascade)
 
   @@id([encounterDetailId, conditionValueId])
   @@map("pokemon_encounter_detail_conditions")
 }
 
 model User {
-  id String @id @default(uuid())
-
-  email        String   @unique
-  username     String   @unique
+  id           String              @id @default(uuid())
+  email        String              @unique
+  username     String              @unique
   passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  collection UserCollection[]
-  favorites  UserFavorite[]
-  profiles   CollectionProfile[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  profiles     CollectionProfile[]
+  collection   UserCollection[]
+  favorites    UserFavorite[]
 
   @@map("users")
 }
 
 model UserCollection {
-  id        String @id @default(uuid())
-  userId    String @map("user_id")
-  speciesId String @map("species_id")
-
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  species PokemonSpecies @relation(fields: [speciesId], references: [id], onDelete: Restrict)
-
-  forms UserCollectionForm[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String               @id @default(uuid())
+  userId    String               @map("user_id")
+  speciesId String               @map("species_id")
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  species   PokemonSpecies       @relation(fields: [speciesId], references: [id])
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  forms     UserCollectionForm[]
 
   @@unique([userId, speciesId])
   @@map("user_collection")
 }
 
 model UserCollectionForm {
-  id               String @id @default(uuid())
-  userCollectionId String @map("user_collection_id")
-  formId           String @map("form_id")
-
-  UserCollection UserCollection @relation(fields: [userCollectionId], references: [id], onDelete: Cascade)
-  form           PokemonForm    @relation(fields: [formId], references: [id], onDelete: Restrict)
-
-  createdAt DateTime @default(now())
+  id               String         @id @default(uuid())
+  userCollectionId String         @map("user_collection_id")
+  formId           String         @map("form_id")
+  createdAt        DateTime       @default(now())
+  form             PokemonForm    @relation(fields: [formId], references: [id])
+  UserCollection   UserCollection @relation(fields: [userCollectionId], references: [id], onDelete: Cascade)
 
   @@unique([userCollectionId, formId])
   @@map("user_collection_forms")
 }
 
 model UserFavorite {
-  id        String @id @default(uuid())
-  userId    String @map("user_id")
-  speciesId String @map("species_id")
-
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  species PokemonSpecies @relation(fields: [speciesId], references: [id], onDelete: Restrict)
-
-  createdAt DateTime @default(now())
+  id        String         @id @default(uuid())
+  userId    String         @map("user_id")
+  speciesId String         @map("species_id")
+  createdAt DateTime       @default(now())
+  species   PokemonSpecies @relation(fields: [speciesId], references: [id])
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, speciesId])
   @@map("user_favorites")
 }
 
 model CollectionProfile {
-  id     String @id @default(uuid())
-  userId String @map("user_id")
-  name   String
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id          String                       @id @default(uuid())
+  userId      String                       @map("user_id")
+  name        String
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
   games       CollectionProfileGame[]
   preferences CollectionProfilePreference?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  user        User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
   @@map("collection_profiles")
 }
 
 model CollectionProfileGame {
-  profileId String @map("profile_id")
-  gameId    String @map("game_id")
-
-  profile CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  game    Game              @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  profileId String            @map("profile_id")
+  gameId    String            @map("game_id")
+  game      Game              @relation(fields: [gameId], references: [id])
+  profile   CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@id([profileId, gameId])
   @@map("collection_profile_games")
 }
 
 model CollectionProfilePreference {
-  id        String @id @default(uuid())
-  profileId String @unique @map("profile_id")
-
-  includeForms       Boolean @default(true)
-  includeVariants    Boolean @default(true)
-  includeEventOnly   Boolean @default(false)
-  includeUnavailable Boolean @default(false)
-
-  profile CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id                 String            @id @default(uuid())
+  profileId          String            @unique @map("profile_id")
+  includeForms       Boolean           @default(true)
+  includeVariants    Boolean           @default(true)
+  includeEventOnly   Boolean           @default(false)
+  includeUnavailable Boolean           @default(false)
+  profile            CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@map("collection_profile_preferences")
 }
 
 model SyncRun {
-  id String @id @default(uuid())
-
+  id         String    @id @default(uuid())
   source     String
   status     String
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
   error      String?
-
-  createdAt DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@map("sync_runs")
 }

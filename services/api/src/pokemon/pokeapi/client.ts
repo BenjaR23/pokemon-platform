@@ -1,5 +1,12 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { PokeAPiPokemon, PokeApiPokemonSpecies } from './pokeapi.types.js';
+import {
+  PokeApiGeneration,
+  PokeAPiPokemon,
+  PokeApiPokemonForm,
+  PokeApiPokemonSpecies,
+  PokeApiVersion,
+  PokeAPiVersionGroup,
+} from './pokeapi.types.js';
 
 @Injectable()
 export class PokeApiClient {
@@ -29,5 +36,62 @@ export class PokeApiClient {
     }
 
     return response.json() as Promise<PokeAPiPokemon>;
+  }
+
+  /**
+   * Obtiene una forma concreta desde PokeAPI.
+   *
+   * El endpoint /pokemon-form/:id contiene informacion
+   * especifica de una forma asociada a una variedad.
+   */
+  async getPokemonForm(externalId: number): Promise<PokeApiPokemonForm> {
+    const response = await fetch(`${this.baseUrl}/pokemon-form/${externalId}`);
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status}`,
+      );
+    }
+
+    return response.json() as Promise<PokeApiPokemonForm>;
+  }
+
+  // Obtiene una generacion desde PokeAPI.
+  async getGeneration(externalId: number): Promise<PokeApiGeneration> {
+    const response = await fetch(`${this.baseUrl}/generation/${externalId}`);
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status}`,
+      );
+    }
+
+    return response.json() as Promise<PokeApiGeneration>;
+  }
+
+  // Obtiene un grupo de versiones desde PokeAPI.
+  async getVersionGroup(externalId: number): Promise<PokeAPiVersionGroup> {
+    const response = await fetch(`${this.baseUrl}/version-group/${externalId}`);
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status}`,
+      );
+    }
+
+    return response.json() as Promise<PokeAPiVersionGroup>;
+  }
+
+  // Obtiene una version/juego concreto desde PokeAPI.
+  async getVersion(externalId: number): Promise<PokeApiVersion> {
+    const response = await fetch(`${this.baseUrl}/version/${externalId}`);
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status}`,
+      );
+    }
+
+    return response.json() as Promise<PokeApiVersion>;
   }
 }

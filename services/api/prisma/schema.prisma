@@ -71,6 +71,7 @@ model PokemonForm {
   versionGroupId      String?
   variety             PokemonVariety       @relation(fields: [varietyId], references: [id], onDelete: Cascade)
   UserCollectionForms UserCollectionForm[]
+  versionGroup VersionGroup? @relation(fields: [versionGroupId], references: [id])
 }
 
 model Type {
@@ -110,6 +111,8 @@ model VersionGroup {
   generationId String     @map("generation_id")
   games        Game[]
   generation   Generation @relation(fields: [generationId], references: [id])
+
+  forms PokemonForm[]
 
   @@map("version_groups")
 }

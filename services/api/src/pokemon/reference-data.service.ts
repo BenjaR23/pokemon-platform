@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PokeApiClient } from './pokeapi/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import type { PokemonSyncContext } from './pokemon-sync-context.js';
 
 /**
  * Extrae el ID numerico contenido al final
@@ -29,10 +30,20 @@ export class ReferenceDataService {
    * asociados directamente a ella.
    *
    * Generation
-   * └── VersionGroup
-   *     └── Game
+   * - VersionGroup
+   * -- Game
    */
-  async syncGeneration(generationExternalId: number) {
+  async syncGeneration(
+    generationExternalId: number,
+    syncContext?: PokemonSyncContext,
+  ) {
+    // Si esta generacion ya fue sincronizada durante esta misma ejecucion, se reutiliza el resultado.
+    const cachedGeneration = syncContext?.generations.get(generationExternalId);
+
+    if (cachedGeneration) {
+      return cachedGeneration;
+    }
+
     // Se consultan los datos completos de la generacion.
     const generationData =
       await this.pokeApiClient.getGeneration(generationExternalId);
@@ -58,8 +69,15 @@ export class ReferenceDataService {
         versionGroupResource.url,
       );
 
-      await this.syncVersionGroup(versionGroupExternalId, generation.id);
+      await this.syncVersionGroup(
+        versionGroupExternalId,
+        generation.id,
+        syncContext,
+      );
     }
+
+    // La generacion se considera sincronizada para esta ejecucion solamente despues de completar todos sus VersionGroup.
+    syncContext?.generations.set(generationExternalId, generation);
 
     return generation;
   }
@@ -76,7 +94,17 @@ export class ReferenceDataService {
   async syncVersionGroup(
     versionGroupExternalId: number,
     generationId?: string,
+    syncContext?: PokemonSyncContext,
   ) {
+    // Si este VersionGroup ya fue sincronizado durante esta misma ejecucion, se reutiliza el resultado.
+    const cachedVersionGroup = syncContext?.versionGroups.get(
+      versionGroupExternalId,
+    );
+
+    if (cachedVersionGroup) {
+      return cachedVersionGroup;
+    }
+
     // Se obtienen los datos completos del VersionGroup.
     const versionGroupData = await this.pokeApiClient.getVersionGroup(
       versionGroupExternalId,
@@ -99,12 +127,13 @@ export class ReferenceDataService {
       );
 
       /*
-       * Sincronizamos la generación correspondiente.
-       * Como syncGeneration() llamará nuevamente a syncVersionGroup(),
-       * en esa llamada sí recibirá generation.id y no volverá
-       * a entrar en este bloque.
+       * Se sincroniza la Generation correspondiente compartiendo
+       * el mismo contexto de esta ejecucion.
        */
-      const generation = await this.syncGeneration(generationExternalId);
+      const generation = await this.syncGeneration(
+        generationExternalId,
+        syncContext,
+      );
 
       resolvedGenerationId = generation.id;
     }
@@ -150,6 +179,9 @@ export class ReferenceDataService {
         },
       });
     }
+
+    // Solo se guarda el VersionGroup en el contexto cuando termino correctamente el sincronizar sus juegos.
+    syncContext?.versionGroups.set(versionGroupExternalId, versionGroup);
 
     return versionGroup;
   }

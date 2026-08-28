@@ -49,9 +49,24 @@ describe('PokemonSyncService', () => {
     // El rango debe ser inclusivo.
     expect(pokemonServiceMock.syncSpecies).toHaveBeenCalledTimes(3);
 
-    expect(pokemonServiceMock.syncSpecies).toHaveBeenNthCalledWith(1, 1);
-    expect(pokemonServiceMock.syncSpecies).toHaveBeenNthCalledWith(2, 2);
-    expect(pokemonServiceMock.syncSpecies).toHaveBeenNthCalledWith(3, 3);
+    // Se verifica que las tres llamdas reciban algun contexto.
+    expect(pokemonServiceMock.syncSpecies).toHaveBeenNthCalledWith(
+      1,
+      1,
+      expect.any(Object),
+    );
+
+    expect(pokemonServiceMock.syncSpecies).toHaveBeenNthCalledWith(
+      2,
+      2,
+      expect.any(Object),
+    );
+
+    expect(pokemonServiceMock.syncSpecies).toHaveBeenNthCalledWith(
+      3,
+      3,
+      expect.any(Object),
+    );
 
     // La ejecucion debe comenzar en estado running.
     expect(prismaMock.syncRun.create).toHaveBeenCalledWith({

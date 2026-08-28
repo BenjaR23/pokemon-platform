@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PokemonService } from './pokemon.service.js';
 import { PrismaService } from '../prisma/prisma.service';
+import { createPokemonSyncContext } from './pokemon-sync-context.js';
 
 @Injectable()
 export class PokemonSyncService {
@@ -37,7 +38,7 @@ export class PokemonSyncService {
 
     try {
       /**
-       * Sen sincronizan las especies de forma secuencial.
+       * Se sincronizan las especies de forma secuencial.
        *
        * Por ahora evitamos concurrencia para:
        * - reducir carga sobre PokeAPI
@@ -46,8 +47,10 @@ export class PokemonSyncService {
        *
        * Mas adelante se podra introducir concurrencia controlada.
        */
+      const syncContext = createPokemonSyncContext();
+
       for (let externalId = startId; externalId <= endId; externalId++) {
-        await this.pokemonService.syncSpecies(externalId);
+        await this.pokemonService.syncSpecies(externalId, syncContext);
       }
 
       // Si todas las especies se sincronizaron correctamente, se marca la ejecucion como completada.

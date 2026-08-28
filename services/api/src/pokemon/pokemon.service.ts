@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PokeApiClient } from './pokeapi/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ReferenceDataService } from './reference-data.service.js';
+import type { PokemonSyncContext } from './pokemon-sync-context.js';
 
 // Extrae el ID numerico de una URL de recurso de PokeAPI.
 function getExternalIdFromUrl(url: string): number {
@@ -36,7 +37,7 @@ export class PokemonService {
    * 3. Resolver la cadena evolutiva asociada.
    * 4. Crear o actualizar la especie de PostgreSQL.
    */
-  async syncSpecies(externalId: number) {
+  async syncSpecies(externalId: number, syncContext?: PokemonSyncContext) {
     // Obtenemos la informacion de la especie desde PokeAPI.
     const species = await this.pokeApiClient.getPokemonSpecies(externalId);
 
@@ -44,8 +45,10 @@ export class PokemonService {
     // tambien su estructura VersionGroup -> Game.
     const generationExternalId = getExternalIdFromUrl(species.generation.url);
 
-    const generation =
-      await this.referenceDataService.syncGeneration(generationExternalId);
+    const generation = await this.referenceDataService.syncGeneration(
+      generationExternalId,
+      syncContext,
+    );
 
     // Solo se crea una cadena evolutiva asociada si PokeAPI proporciona la url.
     let evolutionChainId: string | null = null;
@@ -119,7 +122,7 @@ export class PokemonService {
       await this.syncTypes(savedVariety.id, pokemon.types);
       await this.syncAbilities(savedVariety.id, pokemon.abilities);
       await this.syncStats(savedVariety.id, pokemon.stats);
-      await this.syncForms(savedVariety.id, pokemon.forms);
+      await this.syncForms(savedVariety.id, pokemon.forms, syncContext);
     }
 
     // Por ahora se devuelve PokemonSpecies.
@@ -138,6 +141,7 @@ export class PokemonService {
       name: string;
       url: string;
     }>,
+    syncContext?: PokemonSyncContext,
   ) {
     for (const formResource of forms) {
       // Se extrae el ID externo desde la URL del recurso.
@@ -169,6 +173,8 @@ export class PokemonService {
         if (!versionGroup) {
           versionGroup = await this.referenceDataService.syncVersionGroup(
             versionGroupExternalId,
+            undefined,
+            syncContext,
           );
         }
 

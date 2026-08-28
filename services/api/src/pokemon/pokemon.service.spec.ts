@@ -277,7 +277,10 @@ describe('PokemonService', () => {
     expect(pokeApiClientMock.getPokemonSpecies).toHaveBeenCalledWith(1);
 
     // PokemonService debe delegar la sincronizacion de la generacion al servicio de datos de referencia.
-    expect(referenceDataServiceMock.syncGeneration).toHaveBeenCalledWith(1);
+    expect(referenceDataServiceMock.syncGeneration).toHaveBeenCalledWith(
+      1,
+      undefined,
+    );
 
     // La cadena evolutiva debe sincronizarse cuando existe.
     expect(prismaMock.evolutionChain.upsert).toHaveBeenCalledWith({
@@ -892,7 +895,10 @@ describe('PokemonService', () => {
     // Ejecutamos la sincronización.
     const result = await service.syncSpecies(9999);
 
-    expect(referenceDataServiceMock.syncGeneration).toHaveBeenCalledWith(9);
+    expect(referenceDataServiceMock.syncGeneration).toHaveBeenCalledWith(
+      9,
+      undefined,
+    );
 
     // Como PokeAPI no entregó una cadena evolutiva,
     // no debe realizarse ningún upsert sobre EvolutionChain.
@@ -1112,7 +1118,11 @@ describe('PokemonService', () => {
 
     // Como no existe, debe delegar su sincronización
     // a ReferenceDataService.
-    expect(referenceDataServiceMock.syncVersionGroup).toHaveBeenCalledWith(15);
+    expect(referenceDataServiceMock.syncVersionGroup).toHaveBeenCalledWith(
+      15,
+      undefined,
+      undefined,
+    );
 
     // Finalmente, PokemonForm debe utilizar el UUID interno
     // del VersionGroup recién sincronizado.

@@ -1,6 +1,7 @@
 import { PokemonService } from './pokemon.service.js';
 import { PokeApiClient } from './pokeapi/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ReferenceDataService } from './reference-data.service.js';
 
 describe('PokemonService', () => {
   let service: PokemonService;
@@ -11,23 +12,13 @@ describe('PokemonService', () => {
     getPokemonSpecies: jest.fn(),
     getPokemon: jest.fn(),
     getPokemonForm: jest.fn(),
-    getGeneration: jest.fn(),
-    getVersionGroup: jest.fn(),
-    getVersion: jest.fn(),
   };
 
   // Mock de Prisma.
   // Solo se simula los modelos y métodos que PokemonService utiliza.
   const prismaMock = {
-    generation: {
-      upsert: jest.fn(),
-    },
     versionGroup: {
-      upsert: jest.fn(),
       findUnique: jest.fn(),
-    },
-    game: {
-      upsert: jest.fn(),
     },
     evolutionChain: {
       upsert: jest.fn(),
@@ -58,6 +49,15 @@ describe('PokemonService', () => {
     },
   };
 
+  // Mock del servicio encargado de datos de referencia.
+  const referenceDataServiceMock = {
+    // Sinvroniza la generacion principal de una especie.
+    syncGeneration: jest.fn(),
+
+    // Sincroniza una VersionGroup requerido por una forma.
+    syncVersionGroup: jest.fn(),
+  };
+
   beforeEach(() => {
     // Reinicia llamadas, implementaciones y valores configurados
     // en los mocks para que cada test sea independiente.
@@ -67,6 +67,7 @@ describe('PokemonService', () => {
     service = new PokemonService(
       pokeApiClientMock as unknown as PokeApiClient,
       prismaMock as unknown as PrismaService,
+      referenceDataServiceMock as unknown as ReferenceDataService,
     );
   });
 
@@ -215,72 +216,12 @@ describe('PokemonService', () => {
       generationId: 'generation-uuid',
     });
 
-    // Se simula la generacion completa devuelta por PokeAPI.
-    pokeApiClientMock.getGeneration.mockResolvedValue({
-      id: 1,
-      name: 'generation-i',
-      version_groups: [
-        {
-          name: 'red-blue',
-          url: 'https://pokeapi.co/api/v2/version-group/1/',
-        },
-      ],
-    });
-
-    // Se simula el grupo Red/Blue.
-    pokeApiClientMock.getVersionGroup.mockResolvedValue({
-      id: 1,
-      name: 'red-blue',
-      generation: {
-        name: 'generation-i',
-        url: 'https://pokeapi.co/api/v2/generation/1/',
-      },
-      versions: [
-        {
-          name: 'red',
-          url: 'https://pokeapi.co/api/v2/version/1/',
-        },
-        {
-          name: 'blue',
-          url: 'https://pokeapi.co/api/v2/version/2/',
-        },
-      ],
-    });
-
-    // Cada llamada representa un juego concreto del grupo.
-    pokeApiClientMock.getVersion
-      .mockResolvedValueOnce({
-        id: 1,
-        name: 'red',
-        version_group: {
-          name: 'red-blue',
-          url: 'https://pokeapi.co/api/v2/version-group/1/',
-        },
-      })
-      .mockResolvedValueOnce({
-        id: 2,
-        name: 'blue',
-        version_group: {
-          name: 'red-blue',
-          url: 'https://pokeapi.co/api/v2/version-group/1/',
-        },
-      });
-
-    // Se simula la generación creada o encontrada por Prisma.
-    prismaMock.generation.upsert.mockResolvedValue({
+    // Se simula la generacion ya sincronizada por ReferenceDataService.
+    referenceDataServiceMock.syncGeneration.mockResolvedValue({
       id: 'generation-uuid',
       externalId: 1,
       name: 'generation-i',
     });
-
-    prismaMock.versionGroup.upsert.mockResolvedValue({
-      id: 'version-group-uuid',
-      externalId: 1,
-      name: 'red-blue',
-      generationId: 'generation-uuid',
-    });
-
-    prismaMock.game.upsert.mockResolvedValue({});
 
     // Se simula la cadena evolutiva creada o encontrada por Prisma.
     prismaMock.evolutionChain.upsert.mockResolvedValue({
@@ -335,19 +276,8 @@ describe('PokemonService', () => {
     // Se debe solicitar la especie correcta a PokeAPI.
     expect(pokeApiClientMock.getPokemonSpecies).toHaveBeenCalledWith(1);
 
-    // La generación se obtiene a partir del ID presente en su URL.
-    expect(prismaMock.generation.upsert).toHaveBeenCalledWith({
-      where: {
-        externalId: 1,
-      },
-      update: {
-        name: 'generation-i',
-      },
-      create: {
-        externalId: 1,
-        name: 'generation-i',
-      },
-    });
+    // PokemonService debe delegar la sincronizacion de la generacion al servicio de datos de referencia.
+    expect(referenceDataServiceMock.syncGeneration).toHaveBeenCalledWith(1);
 
     // La cadena evolutiva debe sincronizarse cuando existe.
     expect(prismaMock.evolutionChain.upsert).toHaveBeenCalledWith({
@@ -569,174 +499,6 @@ describe('PokemonService', () => {
     });
   });
 
-  it('should synchronize generation, version groups and games', async () => {
-    // Se simula una especie minima que pertenece a Generation I.
-    pokeApiClientMock.getPokemonSpecies.mockResolvedValue({
-      id: 1,
-      name: 'bulbasaur',
-      evolution_chain: null,
-      generation: {
-        name: 'generation-i',
-        url: 'https://pokeapi.co/api/v2/generation/1/',
-      },
-      varieties: [],
-    });
-
-    // Se simula la informacion completa de la generacion.
-    pokeApiClientMock.getGeneration.mockResolvedValue({
-      id: 1,
-      name: 'generation-i',
-      version_groups: [
-        {
-          name: 'red-blue',
-          url: 'https://pokeapi.co/api/v2/version-group/1/',
-        },
-      ],
-    });
-
-    // Se simula el VersionGroup red-blue.
-    pokeApiClientMock.getVersionGroup.mockResolvedValue({
-      id: 1,
-      name: 'red-blue',
-      generation: {
-        name: 'generation-i',
-        url: 'https://pokeapi.co/api/v2/generation/1/',
-      },
-      versions: [
-        {
-          name: 'red',
-          url: 'https://pokeapi.co/api/v2/version/1/',
-        },
-        {
-          name: 'blue',
-          url: 'https://pokeapi.co/api/v2/version/2/',
-        },
-      ],
-    });
-
-    // Cada llamada corresponde a uno de los juegos del grupo.
-    pokeApiClientMock.getVersion
-      .mockResolvedValueOnce({
-        id: 1,
-        name: 'red',
-        version_group: {
-          name: 'red-blue',
-          url: 'https://pokeapi.co/api/v2/version-group/1/',
-        },
-      })
-      .mockResolvedValueOnce({
-        id: 2,
-        name: 'blue',
-        version_group: {
-          name: 'red-blue',
-          url: 'https://pokeapi.co/api/v2/version-group/1/',
-        },
-      });
-
-    // Se simula generation
-
-    // Se simula Generation persistida.
-    prismaMock.generation.upsert.mockResolvedValue({
-      id: 'generation-uuid',
-      externalId: 1,
-      name: 'generation-i',
-    });
-
-    prismaMock.versionGroup.upsert.mockResolvedValue({
-      id: 'version-group-uuid',
-      externalId: 1,
-      name: 'red-blue',
-      generationId: 'generation-uuid',
-    });
-
-    // El retorno concreto de Game no se usa despues, asi que basta con resolver correctamente.
-    prismaMock.game.upsert.mockResolvedValue({});
-
-    // syncSpecies necesita persistir PokemonSpecies al final.
-    prismaMock.pokemonSpecies.upsert.mockResolvedValue({
-      id: 'species-uuid',
-      externalId: 1,
-      name: 'bulbasaur',
-      generationId: 'generation-uuid',
-      evolutionChainId: null,
-    });
-
-    // Se ejecuta la sincronizacion.
-    await service.syncSpecies(1);
-
-    // Se debe solicitar la generacion correcta.
-    expect(pokeApiClientMock.getGeneration).toHaveBeenCalledWith(1);
-
-    // Generation debe persistirse.
-    expect(prismaMock.generation.upsert).toHaveBeenCalledWith({
-      where: {
-        externalId: 1,
-      },
-      update: {
-        name: 'generation-i',
-      },
-      create: {
-        externalId: 1,
-        name: 'generation-i',
-      },
-    });
-
-    // El VersionGroup debe obtenerse mediante su externalId.
-    expect(pokeApiClientMock.getVersionGroup).toHaveBeenCalledWith(1);
-
-    // Deben consultarse las dos versiones.
-    expect(pokeApiClientMock.getVersion).toHaveBeenCalledTimes(2);
-    expect(pokeApiClientMock.getVersion).toHaveBeenNthCalledWith(1, 1);
-    expect(pokeApiClientMock.getVersion).toHaveBeenNthCalledWith(2, 2);
-
-    // Red debe persistirse relacionado con red-blue.
-    expect(prismaMock.game.upsert).toHaveBeenCalledWith({
-      where: {
-        externalId: 1,
-      },
-      update: {
-        name: 'red',
-        versionGroupId: 'version-group-uuid',
-      },
-      create: {
-        externalId: 1,
-        name: 'red',
-        versionGroupId: 'version-group-uuid',
-      },
-    });
-
-    // Blue tambien debe persistirse en el mismo Versiongroup.
-    expect(prismaMock.game.upsert).toHaveBeenCalledWith({
-      where: {
-        externalId: 2,
-      },
-      update: {
-        name: 'blue',
-        versionGroupId: 'version-group-uuid',
-      },
-      create: {
-        externalId: 2,
-        name: 'blue',
-        versionGroupId: 'version-group-uuid',
-      },
-    });
-
-    expect(prismaMock.versionGroup.upsert).toHaveBeenCalledWith({
-      where: {
-        externalId: 1,
-      },
-      update: {
-        name: 'red-blue',
-        generationId: 'generation-uuid',
-      },
-      create: {
-        externalId: 1,
-        name: 'red-blue',
-        generationId: 'generation-uuid',
-      },
-    });
-  });
-
   it('should synchronize all Pokemon varieties', async () => {
     // Se simula una espcie que contiene dos variedades:
     // una default y una alternativa.
@@ -768,14 +530,11 @@ describe('PokemonService', () => {
       ],
     });
 
-    /**
-     * Este test no necesita comprobar Versiongroups ni Games.
-     * Solo necesitamos que syncGenerationData pueda resolver la generacion.
-     */
-    pokeApiClientMock.getGeneration.mockResolvedValue({
-      id: 1,
+    // La generacion ya es responsabilidad de ReferenceDataService.
+    referenceDataServiceMock.syncGeneration.mockResolvedValue({
+      id: 'generation-uuid',
+      externalId: 1,
       name: 'generation-i',
-      version_groups: [],
     });
 
     /**
@@ -882,13 +641,6 @@ describe('PokemonService', () => {
           },
         ],
       });
-
-    // Se simulan las entidades comunes a ambas variedades.
-    prismaMock.generation.upsert.mockResolvedValue({
-      id: 'generation-uuid',
-      externalId: 1,
-      name: 'generation-i',
-    });
 
     prismaMock.evolutionChain.upsert.mockResolvedValue({
       id: 'evolution-chain-uuid',
@@ -1038,16 +790,6 @@ describe('PokemonService', () => {
       ],
     });
 
-    /**
-     * Este test se centra en evolution_chain === null,
-     * por lo que no se necesita sincronizar grupos de versiones.
-     */
-    pokeApiClientMock.getGeneration.mockResolvedValue({
-      id: 9,
-      name: 'generation-ix',
-      version_groups: [],
-    });
-
     // Se simula la variedad concreta devuelta por /pokemon/9999.
     // Incluimos types, abilities y stats porque syncSpecies
     // ahora sincroniza también esos datos.
@@ -1122,8 +864,8 @@ describe('PokemonService', () => {
       ],
     });
 
-    // La generación debe sincronizarse normalmente.
-    prismaMock.generation.upsert.mockResolvedValue({
+    // ReferenceDataService devuelve la generacion ya sincronizada.
+    referenceDataServiceMock.syncGeneration.mockResolvedValue({
       id: 'generation-uuid',
       externalId: 9,
       name: 'generation-ix',
@@ -1150,19 +892,7 @@ describe('PokemonService', () => {
     // Ejecutamos la sincronización.
     const result = await service.syncSpecies(9999);
 
-    // La generación debe seguir sincronizándose normalmente.
-    expect(prismaMock.generation.upsert).toHaveBeenCalledWith({
-      where: {
-        externalId: 9,
-      },
-      update: {
-        name: 'generation-ix',
-      },
-      create: {
-        externalId: 9,
-        name: 'generation-ix',
-      },
-    });
+    expect(referenceDataServiceMock.syncGeneration).toHaveBeenCalledWith(9);
 
     // Como PokeAPI no entregó una cadena evolutiva,
     // no debe realizarse ningún upsert sobre EvolutionChain.
@@ -1214,5 +944,184 @@ describe('PokemonService', () => {
       generationId: 'generation-uuid',
       evolutionChainId: null,
     });
+  });
+
+  it('should synchronize a missing version group required by a Pokemon form', async () => {
+    // Se simula una especie simple con una única variedad.
+    // No necesitamos cadena evolutiva para este test.
+    pokeApiClientMock.getPokemonSpecies.mockResolvedValue({
+      id: 1,
+      name: 'bulbasaur',
+      evolution_chain: null,
+      generation: {
+        name: 'generation-i',
+        url: 'https://pokeapi.co/api/v2/generation/1/',
+      },
+      varieties: [
+        {
+          is_default: true,
+          pokemon: {
+            name: 'bulbasaur',
+            url: 'https://pokeapi.co/api/v2/pokemon/1/',
+          },
+        },
+      ],
+    });
+
+    // Se simula la variedad concreta.
+    // Dejamos types y abilities vacíos porque no forman parte
+    // del comportamiento que queremos probar aquí.
+    pokeApiClientMock.getPokemon.mockResolvedValue({
+      id: 1,
+      name: 'bulbasaur',
+      species: {
+        name: 'bulbasaur',
+        url: 'https://pokeapi.co/api/v2/pokemon-species/1/',
+      },
+      forms: [
+        {
+          name: 'bulbasaur',
+          url: 'https://pokeapi.co/api/v2/pokemon-form/1/',
+        },
+      ],
+      types: [],
+      abilities: [],
+
+      // syncStats necesita las seis estadísticas para poder continuar.
+      stats: [
+        {
+          base_stat: 45,
+          effort: 0,
+          stat: {
+            name: 'hp',
+            url: 'https://pokeapi.co/api/v2/stat/1/',
+          },
+        },
+        {
+          base_stat: 49,
+          effort: 0,
+          stat: {
+            name: 'attack',
+            url: 'https://pokeapi.co/api/v2/stat/2/',
+          },
+        },
+        {
+          base_stat: 49,
+          effort: 0,
+          stat: {
+            name: 'defense',
+            url: 'https://pokeapi.co/api/v2/stat/3/',
+          },
+        },
+        {
+          base_stat: 65,
+          effort: 1,
+          stat: {
+            name: 'special-attack',
+            url: 'https://pokeapi.co/api/v2/stat/4/',
+          },
+        },
+        {
+          base_stat: 65,
+          effort: 0,
+          stat: {
+            name: 'special-defense',
+            url: 'https://pokeapi.co/api/v2/stat/5/',
+          },
+        },
+        {
+          base_stat: 45,
+          effort: 0,
+          stat: {
+            name: 'speed',
+            url: 'https://pokeapi.co/api/v2/stat/6/',
+          },
+        },
+      ],
+    });
+
+    // La forma pertenece al VersionGroup 15.
+    pokeApiClientMock.getPokemonForm.mockResolvedValue({
+      id: 1,
+      name: 'bulbasaur',
+      form_name: '',
+      is_default: true,
+      is_battle_only: false,
+      pokemon: {
+        name: 'bulbasaur',
+        url: 'https://pokeapi.co/api/v2/pokemon/1/',
+      },
+      version_group: {
+        name: 'x-y',
+        url: 'https://pokeapi.co/api/v2/version-group/15/',
+      },
+    });
+
+    // La generación principal de la especie ya fue sincronizada
+    // por ReferenceDataService.
+    referenceDataServiceMock.syncGeneration.mockResolvedValue({
+      id: 'generation-uuid',
+      externalId: 1,
+      name: 'generation-i',
+    });
+
+    // Se simula PokemonSpecies persistido.
+    prismaMock.pokemonSpecies.upsert.mockResolvedValue({
+      id: 'species-uuid',
+      externalId: 1,
+      name: 'bulbasaur',
+      generationId: 'generation-uuid',
+      evolutionChainId: null,
+    });
+
+    // Se simula la variedad persistida.
+    prismaMock.pokemonVariety.upsert.mockResolvedValue({
+      id: 'variety-uuid',
+      externalId: 1,
+      name: 'bulbasaur',
+      isDefault: true,
+      speciesId: 'species-uuid',
+    });
+
+    // El VersionGroup 15 todavía NO existe en PostgreSQL.
+    prismaMock.versionGroup.findUnique.mockResolvedValue(null);
+
+    // ReferenceDataService lo sincroniza bajo demanda
+    // y devuelve el registro persistido.
+    referenceDataServiceMock.syncVersionGroup.mockResolvedValue({
+      id: 'version-group-uuid',
+      externalId: 15,
+      name: 'x-y',
+      generationId: 'generation-uuid',
+    });
+
+    // No nos interesa el resultado concreto de estos upserts,
+    // solamente que el flujo pueda completarse.
+    prismaMock.pokemonForm.upsert.mockResolvedValue({});
+    prismaMock.pokemonVarietyStats.upsert.mockResolvedValue({});
+
+    // Ejecutamos la sincronización completa de la especie.
+    await service.syncSpecies(1);
+
+    // Primero debe intentar encontrar el VersionGroup localmente.
+    expect(prismaMock.versionGroup.findUnique).toHaveBeenCalledWith({
+      where: {
+        externalId: 15,
+      },
+    });
+
+    // Como no existe, debe delegar su sincronización
+    // a ReferenceDataService.
+    expect(referenceDataServiceMock.syncVersionGroup).toHaveBeenCalledWith(15);
+
+    // Finalmente, PokemonForm debe utilizar el UUID interno
+    // del VersionGroup recién sincronizado.
+    expect(prismaMock.pokemonForm.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          versionGroupId: 'version-group-uuid',
+        }) as object,
+      }),
+    );
   });
 });

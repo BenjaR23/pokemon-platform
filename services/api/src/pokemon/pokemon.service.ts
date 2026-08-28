@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PokeApiClient } from './pokeapi/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ReferenceDataService } from './reference-data.service.js';
 
 // Extrae el ID numerico de una URL de recurso de PokeAPI.
 function getExternalIdFromUrl(url: string): number {
@@ -21,6 +22,9 @@ export class PokemonService {
 
     // PrismaService nos permite persistir los datos obtenidos en PostgreSQL.
     private readonly prisma: PrismaService,
+
+    // Servicio responsable de sincronizar datos de referencia compartidos por muchas especies.
+    private readonly referenceDataService: ReferenceDataService,
   ) {}
 
   /**
@@ -40,7 +44,8 @@ export class PokemonService {
     // tambien su estructura VersionGroup -> Game.
     const generationExternalId = getExternalIdFromUrl(species.generation.url);
 
-    const generation = await this.syncGenerationData(generationExternalId);
+    const generation =
+      await this.referenceDataService.syncGeneration(generationExternalId);
 
     // Solo se crea una cadena evolutiva asociada si PokeAPI proporciona la url.
     let evolutionChainId: string | null = null;
@@ -122,90 +127,6 @@ export class PokemonService {
   }
 
   /**
-   * Sincroniza una generacion junto con sus grupos de versiones
-   * y los juegos pertenecientes a cada grupo.
-   *
-   * Flujo:
-   * Generation
-   * - VersionGroup
-   * -- Game
-   */
-  private async syncGenerationData(generationExternalId: number) {
-    // Se obtienen los datos completos de la generacion desde PokeAPI.
-    const generationData =
-      await this.pokeApiClient.getGeneration(generationExternalId);
-
-    // Se crea o actualiza la generacion.
-    const generation = await this.prisma.generation.upsert({
-      where: {
-        externalId: generationData.id,
-      },
-      update: {
-        name: generationData.name,
-      },
-      create: {
-        externalId: generationData.id,
-        name: generationData.name,
-      },
-    });
-
-    // Cada generacion puede contener varios grupos de versiones.
-    for (const versionGroupResourse of generationData.version_groups) {
-      const versionGroupExternalId = getExternalIdFromUrl(
-        versionGroupResourse.url,
-      );
-
-      // Se consulta el detalle del grupo porque ahi vienen las versiones/juegos concretos.
-      const VersionGroupData = await this.pokeApiClient.getVersionGroup(
-        versionGroupExternalId,
-      );
-
-      // Se persiste el grupo y se relaciona con la generacion.
-      const versionGroup = await this.prisma.versionGroup.upsert({
-        where: {
-          externalId: VersionGroupData.id,
-        },
-        update: {
-          name: VersionGroupData.name,
-          generationId: generation.id,
-        },
-        create: {
-          externalId: VersionGroupData.id,
-          name: VersionGroupData.name,
-          generationId: generation.id,
-        },
-      });
-
-      // Cada VersionGroup contiene uno o mas juegos concretos.
-      for (const versionResource of VersionGroupData.versions) {
-        const versionExternalId = getExternalIdFromUrl(versionResource.url);
-
-        // Se consulta el endpoit /version/:id para no depender unicamente de los datos embebidos.
-        const versionData =
-          await this.pokeApiClient.getVersion(versionExternalId);
-
-        // Se persiste el juego relacionandolo con su VersionGroup.
-        await this.prisma.game.upsert({
-          where: {
-            externalId: versionData.id,
-          },
-          update: {
-            name: versionData.name,
-            versionGroupId: versionGroup.id,
-          },
-          create: {
-            externalId: versionData.id,
-            name: versionData.name,
-            versionGroupId: versionGroup.id,
-          },
-        });
-      }
-    }
-
-    return generation;
-  }
-
-  /**
    * Sinctroniza las formas asociadas a una variedad.
    *
    * Cada referencia obtenida desde /pokemon/:id apunta
@@ -238,16 +159,16 @@ export class PokemonService {
           form.version_group.url,
         );
 
-        // Generation -> VersionGroup ya fue sincronizado antes, asi que aqui solo se necesita buscar su UUID interno.
-        const versionGroup = await this.prisma.versionGroup.findUnique({
+        let versionGroup = await this.prisma.versionGroup.findUnique({
           where: {
             externalId: versionGroupExternalId,
           },
         });
 
+        // Si VersionGroup todavia no existe en la base de datos, lo sincronizamos bajo demanda usando ReferenceDataService.
         if (!versionGroup) {
-          throw new Error(
-            `Versiongroup ${versionGroupExternalId} was not synchronized before PokemonForm`,
+          versionGroup = await this.referenceDataService.syncVersionGroup(
+            versionGroupExternalId,
           );
         }
 

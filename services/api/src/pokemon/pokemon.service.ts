@@ -91,6 +91,10 @@ export class PokemonService {
       },
     });
 
+    // Se sincroniza el nombre que se mostrara al usuario.
+    // Actualmente se prioriza español con ingles como fallback.
+    await this.syncSpeciesName(savedSpecies.id, species.names);
+
     // Se recorren todas las variedades asociadas a la especie.
     for (const variety of species.varieties) {
       // El ID externo de la variedad esta contenido en la URL /pokemon/:id.
@@ -388,6 +392,65 @@ export class PokemonService {
         specialAttack,
         specialDefense,
         speed,
+      },
+    });
+  }
+
+  private async syncSpeciesName(
+    speciesId: string,
+    names: Array<{
+      name: string;
+      language: {
+        name: string;
+        url: string;
+      };
+    }>,
+  ) {
+    /**
+     * Se prioriza español como idioma de la aplicacion
+     * Ingles se utiliza unicamente como fallback si PokeAPI no proporciona un nombre en español.
+     */
+    const localizedName =
+      names.find((entry) => entry.language.name === 'es') ??
+      names.find((entry) => entry.language.name === 'en');
+
+    // Si PokeApi no proporciona ninguno de los idiomas soportados, no se crea un registro localizado.
+    if (!localizedName) {
+      return;
+    }
+
+    // El ID externo del idioma se obtiene directamente desde la URL de PokeAPI, evitando una peticion HTTP adicional.
+    const languageExternalId = getExternalIdFromUrl(localizedName.language.url);
+
+    // Language se mantiene como entidad independiente para que se pueda soportar mas idiomas en el futuro sin modificar el schema.
+    const language = await this.prisma.language.upsert({
+      where: {
+        externalId: languageExternalId,
+      },
+      update: {
+        name: localizedName.language.name,
+      },
+      create: {
+        externalId: languageExternalId,
+        name: localizedName.language.name,
+      },
+    });
+
+    // Se guarda un unico nombre por combinacion especie + idioma.
+    await this.prisma.pokemonSpeciesName.upsert({
+      where: {
+        speciesId_languageId: {
+          speciesId,
+          languageId: language.id,
+        },
+      },
+      update: {
+        name: localizedName.name,
+      },
+      create: {
+        speciesId,
+        languageId: language.id,
+        name: localizedName.name,
       },
     });
   }

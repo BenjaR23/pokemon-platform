@@ -8,6 +8,13 @@ export interface PokeApiPokemonSpecies {
   id: number;
   name: string;
 
+  // Nombres localizados disponibles para la especie.
+  // Por ahora se utilizara español y se mantendra ingles unicamente como fallback.
+  names: Array<{
+    name: string;
+    language: PokeApiNamedResource;
+  }>;
+
   evolution_chain: {
     url: string;
   } | null;
@@ -69,7 +76,7 @@ export interface PokeApiGeneration {
 }
 
 // Representa la informacion minima necesaria del endpoint /version-group/:id.
-export interface PokeAPiVersionGroup {
+export interface PokeApiVersionGroup {
   id: number;
   name: string;
 

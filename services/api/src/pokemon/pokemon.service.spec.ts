@@ -47,6 +47,12 @@ describe('PokemonService', () => {
     pokemonVarietyStats: {
       upsert: jest.fn(),
     },
+    language: {
+      upsert: jest.fn(),
+    },
+    pokemonSpeciesName: {
+      upsert: jest.fn(),
+    },
   };
 
   // Mock del servicio encargado de datos de referencia.
@@ -69,6 +75,19 @@ describe('PokemonService', () => {
       prismaMock as unknown as PrismaService,
       referenceDataServiceMock as unknown as ReferenceDataService,
     );
+
+    prismaMock.language.upsert.mockResolvedValue({
+      id: 'language-uuid',
+      externalId: 7,
+      name: 'es',
+    });
+
+    prismaMock.pokemonSpeciesName.upsert.mockResolvedValue({
+      id: 'species-name-uuid',
+      speciesId: 'species-uuid',
+      languageId: 'language-uuid',
+      name: 'Bulbasaur',
+    });
   });
 
   it('should synchronize a Pokemon species', async () => {
@@ -76,6 +95,24 @@ describe('PokemonService', () => {
     pokeApiClientMock.getPokemonSpecies.mockResolvedValue({
       id: 1,
       name: 'bulbasaur',
+
+      names: [
+        {
+          name: 'Bulbasaur',
+          language: {
+            name: 'en',
+            url: 'https://pokeapi.co/api/v2/language/9/',
+          },
+        },
+        {
+          name: 'Bulbasaur',
+          language: {
+            name: 'es',
+            url: 'https://pokeapi.co/api/v2/language/7/',
+          },
+        },
+      ],
+
       evolution_chain: {
         url: 'https://pokeapi.co/api/v2/evolution-chain/1/',
       },
@@ -312,6 +349,38 @@ describe('PokemonService', () => {
       },
     });
 
+    // Se comprueba que el idioma español se sincronice utlizando el ID externo obtenido desde la URL de PokeAPI.
+    expect(prismaMock.language.upsert).toHaveBeenCalledWith({
+      where: {
+        externalId: 7,
+      },
+      update: {
+        name: 'es',
+      },
+      create: {
+        externalId: 7,
+        name: 'es',
+      },
+    });
+
+    // Se comprueba que el nombre localizado quede asociado a la especies y al idioma español.
+    expect(prismaMock.pokemonSpeciesName.upsert).toHaveBeenCalledWith({
+      where: {
+        speciesId_languageId: {
+          speciesId: 'species-uuid',
+          languageId: 'language-uuid',
+        },
+      },
+      update: {
+        name: 'Bulbasaur',
+      },
+      create: {
+        speciesId: 'species-uuid',
+        languageId: 'language-uuid',
+        name: 'Bulbasaur',
+      },
+    });
+
     // La URL de la variedad default apunta a /pokemon/1,
     // por lo que el servicio debe consultar ese recurso.
     expect(pokeApiClientMock.getPokemon).toHaveBeenCalledWith(1);
@@ -508,6 +577,17 @@ describe('PokemonService', () => {
     pokeApiClientMock.getPokemonSpecies.mockResolvedValue({
       id: 100,
       name: 'test-species',
+
+      names: [
+        {
+          name: 'Bulbasaur',
+          language: {
+            name: 'es',
+            url: 'https://pokeapi.co/api/v2/language/7/',
+          },
+        },
+      ],
+
       evolution_chain: {
         url: 'https://pokeapi.co/api/v2/evolution-chain/100/',
       },
@@ -777,6 +857,17 @@ describe('PokemonService', () => {
     pokeApiClientMock.getPokemonSpecies.mockResolvedValue({
       id: 9999,
       name: 'test-pokemon',
+
+      names: [
+        {
+          name: 'Bulbasaur',
+          language: {
+            name: 'es',
+            url: 'https://pokeapi.co/api/v2/language/7/',
+          },
+        },
+      ],
+
       evolution_chain: null,
       generation: {
         name: 'generation-ix',
@@ -958,6 +1049,17 @@ describe('PokemonService', () => {
     pokeApiClientMock.getPokemonSpecies.mockResolvedValue({
       id: 1,
       name: 'bulbasaur',
+
+      names: [
+        {
+          name: 'Bulbasaur',
+          language: {
+            name: 'es',
+            url: 'https://pokeapi.co/api/v2/language/7/',
+          },
+        },
+      ],
+
       evolution_chain: null,
       generation: {
         name: 'generation-i',
@@ -1133,5 +1235,158 @@ describe('PokemonService', () => {
         }) as object,
       }),
     );
+  });
+
+  it('should user English as fallback when Spanish name is unavailable', async () => {
+    // Se simula una especies que no posee nombre en español.
+    pokeApiClientMock.getPokemonSpecies.mockResolvedValue({
+      id: 1,
+      name: 'bulbasaur',
+
+      names: [
+        {
+          name: 'Bulbasaur',
+          language: {
+            name: 'en',
+            url: 'https://pokeapi.co/api/v2/language/9/',
+          },
+        },
+      ],
+
+      evolution_chain: {
+        url: 'https://pokeapi.co/api/v2/evolution-chain/1/',
+      },
+
+      generation: {
+        name: 'generation-i',
+        url: 'https://pokeapi.co/api/v2/generation/1/',
+      },
+
+      varieties: [],
+    });
+
+    // Se simula la generacion ya persistida.
+    referenceDataServiceMock.syncGeneration.mockResolvedValue({
+      id: 'generation-uuid',
+      externalId: 1,
+      name: 'generation-i',
+    });
+
+    // Se simula la cadena evolutiva persistida.
+    prismaMock.evolutionChain.upsert.mockResolvedValue({
+      id: 'evolution-chain-uuid',
+      externalId: 1,
+    });
+
+    // Se simula la especie eprsistida.
+    prismaMock.pokemonSpecies.upsert.mockResolvedValue({
+      id: 'species-uuid',
+      externalId: 1,
+      name: 'bulbasaur',
+      generationId: 'generation-uuid',
+      evolutionChainId: 'evolution-chain-uuid',
+    });
+
+    // Para este caso, Language debe representar ingles.
+    prismaMock.language.upsert.mockResolvedValue({
+      id: 'language-en-uuid',
+      externalId: 9,
+      name: 'en',
+    });
+
+    // Se ejecuta la sincronizacion.
+    await service.syncSpecies(1);
+
+    // Como español no existe, debe sincronizarse en ingles.
+    expect(prismaMock.language.upsert).toHaveBeenCalledWith({
+      where: {
+        externalId: 9,
+      },
+      update: {
+        name: 'en',
+      },
+      create: {
+        externalId: 9,
+        name: 'en',
+      },
+    });
+
+    // El nombre localizado debe quedar asociado al idioma ingles.
+    expect(prismaMock.pokemonSpeciesName.upsert).toHaveBeenCalledWith({
+      where: {
+        speciesId_languageId: {
+          speciesId: 'species-uuid',
+          languageId: 'language-en-uuid',
+        },
+      },
+      update: {
+        name: 'Bulbasaur',
+      },
+      create: {
+        speciesId: 'species-uuid',
+        languageId: 'language-en-uuid',
+        name: 'Bulbasaur',
+      },
+    });
+  });
+
+  it('should skip localized name synchronization when Spanish and english are unavailable', async () => {
+    // Se simula una especie con nombres disponibles, pero sin español ni ingles.
+    pokeApiClientMock.getPokemonSpecies.mockResolvedValue({
+      id: 1,
+      name: 'bulbasaur',
+
+      names: [
+        {
+          name: 'フシギダネ',
+          language: {
+            name: 'ja-Hrkt',
+            url: 'https://pokeapi.co/api/v2/language/1/',
+          },
+        },
+      ],
+
+      evolution_chain: {
+        url: 'https://pokeapi.co/v2/evolution-chain/1/',
+      },
+
+      generation: {
+        name: 'generation-i',
+        url: 'https://pokeapi.co/api/v2/generation/1/',
+      },
+
+      varieties: [],
+    });
+
+    // Se simula la generacion ya persistida.
+    referenceDataServiceMock.syncGeneration.mockResolvedValue({
+      id: 'generation-uuid',
+      externalId: 1,
+      name: 'generation-i',
+    });
+
+    // Se simula la cadena evolutiva persistida.
+    prismaMock.evolutionChain.upsert.mockResolvedValue({
+      id: 'evolution-chain-uuid',
+      externalId: 1,
+    });
+
+    // Se simula la especie persistida.
+    prismaMock.pokemonSpecies.upsert.mockResolvedValue({
+      id: 'species-uuid',
+      externalId: 1,
+      name: 'bulbasaur',
+      generationId: 'generation-uuid',
+      evolutionChainId: 'evolution-chain-uuid',
+    });
+
+    // Se ejecuta la sincronizacion.
+    await service.syncSpecies(1);
+
+    // No debe persistirse ningun idioma no soportado actualmente.
+    expect(prismaMock.language.upsert).not.toHaveBeenCalled();
+
+    // Tampoco debe crearse un nombre localizado.
+    expect(prismaMock.pokemonSpeciesName.upsert).not.toHaveBeenCalled();
   });
 });

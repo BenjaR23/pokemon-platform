@@ -5,7 +5,7 @@ import {
   PokeApiPokemonForm,
   PokeApiPokemonSpecies,
   PokeApiVersion,
-  PokeAPiVersionGroup,
+  PokeApiVersionGroup,
 } from './pokeapi.types.js';
 
 @Injectable()
@@ -70,7 +70,7 @@ export class PokeApiClient {
   }
 
   // Obtiene un grupo de versiones desde PokeAPI.
-  async getVersionGroup(externalId: number): Promise<PokeAPiVersionGroup> {
+  async getVersionGroup(externalId: number): Promise<PokeApiVersionGroup> {
     const response = await fetch(`${this.baseUrl}/version-group/${externalId}`);
 
     if (!response.ok) {
@@ -79,7 +79,7 @@ export class PokeApiClient {
       );
     }
 
-    return response.json() as Promise<PokeAPiVersionGroup>;
+    return response.json() as Promise<PokeApiVersionGroup>;
   }
 
   // Obtiene una version/juego concreto desde PokeAPI.

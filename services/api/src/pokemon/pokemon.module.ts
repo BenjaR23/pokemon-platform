@@ -4,6 +4,7 @@ import { PokemonService } from './pokemon.service.js';
 import { PokeApiClient } from './pokeapi/client.js';
 import { ReferenceDataService } from './reference-data.service.js';
 import { PokemonSyncService } from './pokemon-sync.service.js';
+import { EvolutionService } from './evolution.service.js';
 
 @Module({
   controllers: [PokemonController],
@@ -12,6 +13,7 @@ import { PokemonSyncService } from './pokemon-sync.service.js';
     PokeApiClient,
     ReferenceDataService,
     PokemonSyncService,
+    EvolutionService,
   ],
 })
 export class PokemonModule {}

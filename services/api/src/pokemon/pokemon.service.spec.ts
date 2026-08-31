@@ -12,6 +12,7 @@ describe('PokemonService', () => {
     getPokemonSpecies: jest.fn(),
     getPokemon: jest.fn(),
     getPokemonForm: jest.fn(),
+    getEvolutionChain: jest.fn(),
   };
 
   // Mock de Prisma.

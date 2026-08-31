@@ -1,6 +1,7 @@
 import { PokemonSyncService } from './pokemon-sync.service.js';
 import { PokemonService } from './pokemon.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EvolutionService } from './evolution.service.js';
 
 describe('PokemonSyncService', () => {
   let service: PokemonSyncService;
@@ -15,6 +16,13 @@ describe('PokemonSyncService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    pokemonSpecies: {
+      findMany: jest.fn(),
+    },
+  };
+
+  const evolutionServiceMock = {
+    syncEvolutionChain: jest.fn(),
   };
 
   beforeEach(() => {
@@ -23,6 +31,7 @@ describe('PokemonSyncService', () => {
     service = new PokemonSyncService(
       pokemonServiceMock as unknown as PokemonService,
       prismaMock as unknown as PrismaService,
+      evolutionServiceMock as unknown as EvolutionService,
     );
   });
 
@@ -44,7 +53,50 @@ describe('PokemonSyncService', () => {
       status: 'completed',
     });
 
+    prismaMock.pokemonSpecies.findMany.mockResolvedValue([
+      {
+        evolutionChain: {
+          externalId: 1,
+        },
+      },
+      {
+        evolutionChain: {
+          externalId: 1,
+        },
+      },
+      {
+        evolutionChain: {
+          externalId: 1,
+        },
+      },
+    ]);
+
+    evolutionServiceMock.syncEvolutionChain.mockResolvedValue({
+      id: 'evolution-chain-uuid',
+      externalId: 1,
+    });
+
     await service.syncRange(1, 3);
+
+    expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith({
+      where: {
+        externalId: {
+          gte: 1,
+          lte: 3,
+        },
+      },
+      select: {
+        evolutionChain: {
+          select: {
+            externalId: true,
+          },
+        },
+      },
+    });
+
+    expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledTimes(1);
+
+    expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledWith(1);
 
     // El rango debe ser inclusivo.
     expect(pokemonServiceMock.syncSpecies).toHaveBeenCalledTimes(3);
@@ -131,5 +183,75 @@ describe('PokemonSyncService', () => {
     expect(prismaMock.syncRun.create).not.toHaveBeenCalled();
 
     expect(pokemonServiceMock.syncSpecies).not.toHaveBeenCalled();
+  });
+
+  it('should synchronize each unique evolution chain once', async () => {
+    prismaMock.syncRun.create.mockResolvedValue({
+      id: 'sync-run-uuid',
+    });
+
+    pokemonServiceMock.syncSpecies.mockResolvedValue({});
+
+    prismaMock.pokemonSpecies.findMany.mockResolvedValue([
+      {
+        evolutionChain: {
+          externalId: 1,
+        },
+      },
+      {
+        evolutionChain: {
+          externalId: 1,
+        },
+      },
+      {
+        evolutionChain: {
+          externalId: 2,
+        },
+      },
+    ]);
+
+    evolutionServiceMock.syncEvolutionChain.mockResolvedValue({});
+
+    prismaMock.syncRun.update.mockResolvedValue({});
+
+    await service.syncRange(1, 3);
+
+    expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledTimes(2);
+
+    expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledWith(1);
+
+    expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledWith(2);
+  });
+
+  it('should ignore species without an evolution chain', async () => {
+    prismaMock.syncRun.create.mockResolvedValue({
+      id: 'sync-run-uuid',
+    });
+
+    pokemonServiceMock.syncSpecies.mockResolvedValue({});
+
+    prismaMock.pokemonSpecies.findMany.mockResolvedValue([
+      {
+        evolutionChain: null,
+      },
+      {
+        evolutionChain: {
+          externalId: 5,
+        },
+      },
+      {
+        evolutionChain: null,
+      },
+    ]);
+
+    evolutionServiceMock.syncEvolutionChain.mockResolvedValue({});
+
+    prismaMock.syncRun.update.mockResolvedValue({});
+
+    await service.syncRange(1, 3);
+
+    expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledTimes(1);
+
+    expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledWith(5);
   });
 });

@@ -95,3 +95,39 @@ export interface PokeApiVersion {
   // Grupo de versiones al que pertenece el juego.
   version_group: PokeApiNamedResource;
 }
+
+export interface PokeApiEvolutionChain {
+  id: number;
+  chain: PokeApiChainLink;
+}
+
+export interface PokeApiChainLink {
+  species: PokeApiNamedResource;
+  evolution_details: PokeApiEvolutionDetail[];
+  evolves_to: PokeApiChainLink[];
+}
+
+export interface PokeApiEvolutionDetail {
+  trigger: PokeApiNamedResource;
+
+  item: PokeApiNamedResource | null;
+  held_item: PokeApiNamedResource | null;
+  known_move: PokeApiNamedResource | null;
+  known_move_type: PokeApiNamedResource | null;
+  location: PokeApiNamedResource | null;
+  party_species: PokeApiNamedResource | null;
+  party_type: PokeApiNamedResource | null;
+  trade_species: PokeApiNamedResource | null;
+
+  min_level: number | null;
+  min_happiness: number | null;
+  min_beauty: number | null;
+  min_affection: number | null;
+  relative_physical_stats: number | null;
+
+  needs_overworld_rain: boolean;
+  turn_upside_down: boolean;
+
+  time_of_day: string;
+  gender: number | null;
+}

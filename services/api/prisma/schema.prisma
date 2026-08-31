@@ -231,6 +231,8 @@ model Evolution {
   toSpecies     PokemonSpecies   @relation("EvolutionTo", fields: [toSpeciesId], references: [id])
   trigger       EvolutionTrigger @relation(fields: [triggerId], references: [id])
 
+  @@unique([chainId, fromSpeciesId, toSpeciesId, triggerId], name: "chainId_fromSpeciesId_toSpeciesId_triggerId")
+
   @@map("evolutions")
 }
 

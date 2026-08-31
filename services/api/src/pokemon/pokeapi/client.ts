@@ -6,6 +6,7 @@ import {
   PokeApiPokemonSpecies,
   PokeApiVersion,
   PokeApiVersionGroup,
+  PokeApiEvolutionChain,
 } from './pokeapi.types.js';
 
 @Injectable()
@@ -93,5 +94,19 @@ export class PokeApiClient {
     }
 
     return response.json() as Promise<PokeApiVersion>;
+  }
+
+  async getEvolutionChain(externalId: number): Promise<PokeApiEvolutionChain> {
+    const response = await fetch(
+      `${this.baseUrl}/evolution-chain/${externalId}`,
+    );
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status}`,
+      );
+    }
+
+    return response.json() as Promise<PokeApiEvolutionChain>;
   }
 }

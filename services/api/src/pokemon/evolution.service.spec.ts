@@ -48,6 +48,94 @@ describe('EvolutionService', () => {
     },
   };
 
+  const createEvolutionDetail = (overrides: Record<string, unknown> = {}) => ({
+    trigger: {
+      name: 'level-up',
+      url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
+    },
+
+    item: null,
+    held_item: null,
+    known_move: null,
+    known_move_type: null,
+    location: null,
+    party_species: null,
+    party_type: null,
+    trade_species: null,
+
+    version_group_id: null,
+    region: null,
+    base_form: null,
+    evolved_form: null,
+    used_move: null,
+
+    min_level: null,
+    min_happiness: null,
+    min_beauty: null,
+    min_affection: null,
+
+    gender: null,
+    relative_physical_stats: null,
+
+    needs_overworld_rain: false,
+    turn_upside_down: false,
+    near_special_rock: false,
+    needs_multiplayer: false,
+
+    min_move_count: null,
+    min_steps: null,
+    min_damage_taken: null,
+
+    time_of_day: '',
+    is_default: undefined,
+
+    ...overrides,
+  });
+
+  const mockEvolutionTransition = ({
+    fromExternalId,
+    toExternalId,
+    fromSpeciesId,
+    toSpeciesId,
+    triggerId = 'trigger-uuid',
+    evolutionId = 'evolution-uuid',
+  }: {
+    fromExternalId: number;
+    toExternalId: number;
+    fromSpeciesId: string;
+    toSpeciesId: string;
+    triggerId?: string;
+    evolutionId?: string;
+  }) => {
+    prismaMock.pokemonSpecies.findUnique
+      .mockResolvedValueOnce({
+        id: fromSpeciesId,
+        externalId: fromExternalId,
+      })
+      .mockResolvedValueOnce({
+        id: toSpeciesId,
+        externalId: toExternalId,
+      });
+
+    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
+      id: triggerId,
+    });
+
+    prismaMock.evolution.upsert.mockResolvedValue({
+      id: evolutionId,
+    });
+  };
+
+  const mockEvolutionChain = (
+    externalId: number,
+    id = 'evolution-chain-uuid',
+  ) => {
+    prismaMock.evolutionChain.upsert.mockResolvedValue({
+      id,
+      externalId,
+    });
+  };
+
   beforeEach(() => {
     jest.resetAllMocks();
 
@@ -74,40 +162,9 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/2/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
+              createEvolutionDetail({
                 min_level: 16,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
-                gender: null,
-              },
+              }),
             ],
             evolves_to: [
               {
@@ -115,44 +172,11 @@ describe('EvolutionService', () => {
                   name: 'venusaur',
                   url: 'https://pokeapi.co/api/v2/pokemon-species/3/',
                 },
-
                 evolution_details: [
-                  {
-                    trigger: {
-                      name: 'level-up',
-                      url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                    },
-
-                    item: null,
-                    held_item: null,
-                    known_move: null,
-                    known_move_type: null,
-                    location: null,
-                    party_species: null,
-                    party_type: null,
-                    trade_species: null,
-
+                  createEvolutionDetail({
                     min_level: 32,
-                    min_happiness: null,
-                    min_beauty: null,
-                    min_affection: null,
-                    relative_physical_stats: null,
-
-                    needs_overworld_rain: false,
-                    turn_upside_down: false,
-
-                    near_special_rock: false,
-                    needs_multiplayer: false,
-
-                    min_move_count: null,
-                    min_steps: null,
-                    min_damage_taken: null,
-
-                    time_of_day: '',
-                    gender: null,
-                  },
+                  }),
                 ],
-
                 evolves_to: [],
               },
             ],
@@ -161,10 +185,7 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 1,
-    });
+    mockEvolutionChain(1);
 
     prismaMock.pokemonSpecies.findUnique
       .mockResolvedValueOnce({
@@ -383,44 +404,16 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/26/',
             },
             evolution_details: [
-              {
+              createEvolutionDetail({
                 trigger: {
                   name: 'use-item',
                   url: 'https://pokeapi.co/api/v2/evolution-trigger/3/',
                 },
-
                 item: {
                   name: 'thunder-stone',
                   url: 'https://pokeapi.co/api/v2/item/83/',
                 },
-
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
-                gender: null,
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -428,31 +421,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 10,
-    });
+    mockEvolutionChain(10);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'pikachu-uuid',
-        externalId: 25,
-        name: 'pikachu',
-      })
-      .mockResolvedValueOnce({
-        id: 'raichu-uuid',
-        externalId: 26,
-        name: 'raichu',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'use-item-trigger-uuid',
-      externalId: 3,
-      name: 'use-item',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'pikachu-raichu-evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 25,
+      toExternalId: 26,
+      fromSpeciesId: 'pikachu-uuid',
+      toSpeciesId: 'raichu-uuid',
+      evolutionId: 'pikachu-raichu-evolution-uuid',
     });
 
     prismaMock.item.upsert.mockResolvedValue({
@@ -536,40 +512,9 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/2/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
+              createEvolutionDetail({
                 min_level: 16,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
-                gender: null,
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -577,10 +522,7 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 1,
-    });
+    mockEvolutionChain(1);
 
     // Bulbasaur ya existe, pero Ivysaur todavia no.
     prismaMock.pokemonSpecies.findUnique
@@ -617,74 +559,12 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/2/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
+              createEvolutionDetail({
                 min_level: 20,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
-                gender: null,
-              },
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
-                min_level: null,
+              }),
+              createEvolutionDetail({
                 min_happiness: 160,
-                min_beauty: null,
-                min_affection: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
-                gender: null,
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -692,31 +572,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 1,
-    });
+    mockEvolutionChain(1);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 1,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 2,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 1,
+      toExternalId: 2,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     await service.syncEvolutionChain(1);
@@ -842,40 +705,19 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/101/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
+              createEvolutionDetail({
                 min_level: 30,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
                 gender: 2,
                 relative_physical_stats: 1,
-
                 needs_overworld_rain: true,
                 turn_upside_down: true,
                 near_special_rock: true,
                 needs_multiplayer: true,
-
                 min_move_count: 5,
                 min_steps: 1000,
                 min_damage_taken: 20,
-
                 time_of_day: 'night',
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -883,31 +725,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 100,
-    });
+    mockEvolutionChain(100);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 100,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 101,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 100,
+      toExternalId: 101,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     await service.syncEvolutionChain(100);
@@ -976,45 +801,13 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/201/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-
+              createEvolutionDetail({
                 held_item: {
                   name: 'razor-claw',
                   url: 'https://pokeapi.co/api/v2/item/303/',
                 },
-
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
-                gender: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
                 time_of_day: 'night',
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -1022,31 +815,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 200,
-    });
+    mockEvolutionChain(200);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 200,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 201,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 200,
+      toExternalId: 201,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     prismaMock.item.upsert.mockResolvedValue({
@@ -1132,50 +908,16 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/301/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-
+              createEvolutionDetail({
                 known_move_type: {
                   name: 'dark',
                   url: 'https://pokeapi.co/api/v2/type/17/',
                 },
-
-                location: null,
-                party_species: null,
-
                 party_type: {
                   name: 'fairy',
                   url: 'https://pokeapi.co/api/v2/type/18/',
                 },
-
-                trade_species: null,
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
-                gender: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -1183,31 +925,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 300,
-    });
+    mockEvolutionChain(300);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 300,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 301,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 300,
+      toExternalId: 301,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     prismaMock.type.upsert
@@ -1312,49 +1037,16 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/401/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-
+              createEvolutionDetail({
                 party_species: {
                   name: 'mantyke',
                   url: 'https://pokeapi.co/api/v2/pokemon-species/458/',
                 },
-
-                party_type: null,
-
                 trade_species: {
                   name: 'karrablast',
                   url: 'https://pokeapi.co/api/v2/pokemon-species/588/',
                 },
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
-                gender: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -1362,10 +1054,7 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 400,
-    });
+    mockEvolutionChain(400);
 
     prismaMock.pokemonSpecies.findUnique
       .mockResolvedValueOnce({
@@ -1473,53 +1162,13 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/501/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
-                version_group_id: null,
-
+              createEvolutionDetail({
                 region: {
                   name: 'alola',
                   url: 'https://pokeapi.co/api/v2/region/7/',
                 },
-
-                base_form: null,
-                evolved_form: null,
-                used_move: null,
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
-                gender: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
-
                 is_default: true,
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -1527,31 +1176,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 500,
-    });
+    mockEvolutionChain(500);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 500,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 501,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 500,
+      toExternalId: 501,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     prismaMock.region.upsert.mockResolvedValue({
@@ -1635,51 +1267,13 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/601/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
+              createEvolutionDetail({
                 version_group_id: {
                   name: 'sword-shield',
                   url: 'https://pokeapi.co/api/v2/version-group/20/',
                 },
-
-                region: null,
-                base_form: null,
-                evolved_form: null,
-                used_move: null,
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
-                gender: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
                 is_default: true,
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -1687,31 +1281,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 600,
-    });
+    mockEvolutionChain(600);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 600,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 601,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 600,
+      toExternalId: 601,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     referenceDataServiceMock.syncVersionGroup.mockResolvedValue({
@@ -1785,53 +1362,13 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/701/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-
+              createEvolutionDetail({
                 location: {
                   name: 'mt-coronet',
                   url: 'https://pokeapi.co/api/v2/location/10/',
                 },
-
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
-                version_group_id: null,
-                region: null,
-
-                base_form: null,
-                evolved_form: null,
-                used_move: null,
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
-                gender: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
                 is_default: true,
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -1839,31 +1376,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 700,
-    });
+    mockEvolutionChain(700);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 700,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 701,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 700,
+      toExternalId: 701,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     prismaMock.location.findUnique.mockResolvedValue({
@@ -1941,53 +1461,13 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/703/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-
+              createEvolutionDetail({
                 location: {
                   name: 'unknown-location',
                   url: 'https://pokeapi.co/api/v2/location/999/',
                 },
-
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
-                version_group_id: null,
-                region: null,
-
-                base_form: null,
-                evolved_form: null,
-                used_move: null,
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
-                gender: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
                 is_default: true,
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -1995,31 +1475,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 702,
-    });
+    mockEvolutionChain(702);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 702,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 703,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 702,
+      toExternalId: 703,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     prismaMock.location.findUnique.mockResolvedValue(null);
@@ -2086,49 +1549,9 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/801/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
-                version_group_id: null,
-                region: null,
-
-                base_form: null,
-                evolved_form: null,
-                used_move: null,
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
-                gender: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
-
+              createEvolutionDetail({
                 is_default: false,
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -2136,31 +1559,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 800,
-    });
+    mockEvolutionChain(800);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 800,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 801,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 800,
+      toExternalId: 801,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     await service.syncEvolutionChain(800);
@@ -2225,56 +1631,17 @@ describe('EvolutionService', () => {
               url: 'https://pokeapi.co/api/v2/pokemon-species/901/',
             },
             evolution_details: [
-              {
-                trigger: {
-                  name: 'level-up',
-                  url: 'https://pokeapi.co/api/v2/evolution-trigger/1/',
-                },
-
-                item: null,
-                held_item: null,
-                known_move: null,
-                known_move_type: null,
-                location: null,
-                party_species: null,
-                party_type: null,
-                trade_species: null,
-
-                version_group_id: null,
-                region: null,
-
+              createEvolutionDetail({
                 base_form: {
                   name: 'species-one',
                   url: 'https://pokeapi.co/api/v2/pokemon/900/',
                 },
-
                 evolved_form: {
                   name: 'species-two',
                   url: 'https://pokeapi.co/api/v2/pokemon/901/',
                 },
-
-                used_move: null,
-
-                min_level: null,
-                min_happiness: null,
-                min_beauty: null,
-                min_affection: null,
-
-                gender: null,
-                relative_physical_stats: null,
-
-                needs_overworld_rain: false,
-                turn_upside_down: false,
-                near_special_rock: false,
-                needs_multiplayer: false,
-
-                min_move_count: null,
-                min_steps: null,
-                min_damage_taken: null,
-
-                time_of_day: '',
                 is_default: true,
-              },
+              }),
             ],
             evolves_to: [],
           },
@@ -2282,31 +1649,14 @@ describe('EvolutionService', () => {
       },
     });
 
-    prismaMock.evolutionChain.upsert.mockResolvedValue({
-      id: 'evolution-chain-uuid',
-      externalId: 900,
-    });
+    mockEvolutionChain(900);
 
-    prismaMock.pokemonSpecies.findUnique
-      .mockResolvedValueOnce({
-        id: 'species-one-uuid',
-        externalId: 900,
-        name: 'species-one',
-      })
-      .mockResolvedValueOnce({
-        id: 'species-two-uuid',
-        externalId: 901,
-        name: 'species-two',
-      });
-
-    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
-      id: 'level-up-trigger-uuid',
-      externalId: 1,
-      name: 'level-up',
-    });
-
-    prismaMock.evolution.upsert.mockResolvedValue({
-      id: 'evolution-uuid',
+    mockEvolutionTransition({
+      fromExternalId: 900,
+      toExternalId: 901,
+      fromSpeciesId: 'species-one-uuid',
+      toSpeciesId: 'species-two-uuid',
+      triggerId: 'level-up-trigger-uuid',
     });
 
     prismaMock.pokemonVariety.findUnique

@@ -119,15 +119,27 @@ export interface PokeApiEvolutionDetail {
   party_type: PokeApiNamedResource | null;
   trade_species: PokeApiNamedResource | null;
 
+  version_group_id: PokeApiNamedResource | null;
+  region: PokeApiNamedResource | null;
+  base_form: PokeApiNamedResource | null;
+  evolved_form: PokeApiNamedResource | null;
+
   min_level: number | null;
   min_happiness: number | null;
   min_beauty: number | null;
   min_affection: number | null;
   relative_physical_stats: number | null;
+  min_move_count: number | null;
+  min_steps: number | null;
+  min_damage_taken: number | null;
 
+  gender: number | null;
+
+  is_default: boolean;
+  near_special_rock: boolean;
+  needs_multiplayer: boolean;
   needs_overworld_rain: boolean;
   turn_upside_down: boolean;
 
   time_of_day: string;
-  gender: number | null;
 }

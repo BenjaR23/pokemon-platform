@@ -4,7 +4,9 @@ import { PokeApiClient } from './pokeapi/client.js';
 import {
   PokeApiChainLink,
   PokeApiEvolutionDetail,
+  PokeApiNamedResource,
 } from './pokeapi/pokeapi.types.js';
+import { ReferenceDataService } from './reference-data.service.js';
 
 function getExternalIdFromUrl(url: string): number {
   const parts = url.split('/').filter(Boolean);
@@ -22,6 +24,7 @@ export class EvolutionService {
   constructor(
     private readonly pokeApiClient: PokeApiClient,
     private readonly prisma: PrismaService,
+    private readonly referenceDataService: ReferenceDataService,
   ) {}
 
   /**
@@ -194,11 +197,130 @@ export class EvolutionService {
     });
   }
 
+  private async syncType(typeResource: PokeApiNamedResource | null) {
+    if (!typeResource) {
+      return null;
+    }
+
+    const externalId = getExternalIdFromUrl(typeResource.url);
+
+    return this.prisma.type.upsert({
+      where: {
+        externalId,
+      },
+      update: {
+        name: typeResource.name,
+      },
+      create: {
+        externalId,
+        name: typeResource.name,
+      },
+    });
+  }
+
+  private async syncRegion(regionResource: PokeApiNamedResource | null) {
+    if (!regionResource) {
+      return null;
+    }
+
+    const externalId = getExternalIdFromUrl(regionResource.url);
+
+    return this.prisma.region.upsert({
+      where: {
+        externalId,
+      },
+      update: {
+        name: regionResource.name,
+      },
+      create: {
+        externalId,
+        name: regionResource.name,
+      },
+    });
+  }
+
+  private async syncVersionGroup(
+    versionGroupResource: PokeApiNamedResource | null,
+  ) {
+    if (!versionGroupResource) {
+      return null;
+    }
+
+    const externalId = getExternalIdFromUrl(versionGroupResource.url);
+
+    return this.referenceDataService.syncVersionGroup(externalId);
+  }
+
+  private async findSpecies(speciesResource: PokeApiNamedResource | null) {
+    if (!speciesResource) {
+      return null;
+    }
+
+    const externalId = getExternalIdFromUrl(speciesResource.url);
+
+    return this.prisma.pokemonSpecies.findUnique({
+      where: {
+        externalId,
+      },
+    });
+  }
+
+  private async findLocation(locationResource: PokeApiNamedResource | null) {
+    if (!locationResource) {
+      return null;
+    }
+
+    const externalId = getExternalIdFromUrl(locationResource.url);
+
+    return this.prisma.location.findUnique({
+      where: {
+        externalId,
+      },
+    });
+  }
+
+  private async findPokemonVariety(
+    pokemonResource: PokeApiNamedResource | null,
+  ) {
+    if (!pokemonResource) {
+      return null;
+    }
+
+    const externalId = getExternalIdFromUrl(pokemonResource.url);
+
+    return this.prisma.pokemonVariety.findUnique({
+      where: {
+        externalId,
+      },
+    });
+  }
+
   private async createEvolutionRule(
     evolutionId: string,
     evolutionDetail: PokeApiEvolutionDetail,
   ) {
     const item = await this.syncItem(evolutionDetail.item);
+    const heldItem = await this.syncItem(evolutionDetail.held_item);
+
+    const knownType = await this.syncType(evolutionDetail.known_move_type);
+    const partyType = await this.syncType(evolutionDetail.party_type);
+
+    const partySpecies = await this.findSpecies(evolutionDetail.party_species);
+    const tradeSpecies = await this.findSpecies(evolutionDetail.trade_species);
+
+    const region = await this.syncRegion(evolutionDetail.region);
+
+    const versionGroup = await this.syncVersionGroup(
+      evolutionDetail.version_group_id,
+    );
+
+    const location = await this.findLocation(evolutionDetail.location);
+
+    const baseForm = await this.findPokemonVariety(evolutionDetail.base_form);
+
+    const evolvedForm = await this.findPokemonVariety(
+      evolutionDetail.evolved_form,
+    );
 
     return this.prisma.evolutionRule.create({
       data: {
@@ -209,17 +331,52 @@ export class EvolutionService {
         minBeauty: evolutionDetail.min_beauty,
         minAffection: evolutionDetail.min_affection,
 
+        gender: evolutionDetail.gender,
+        relativePhysicalStats: evolutionDetail.relative_physical_stats,
+
+        minMoveCount: evolutionDetail.min_move_count,
+        minSteps: evolutionDetail.min_steps,
+        minDamageTaken: evolutionDetail.min_damage_taken,
+
+        knownTypeId: knownType?.id ?? null,
+        partyTypeId: partyType?.id ?? null,
+
+        partySpeciesId: partySpecies?.id ?? null,
+        tradeSpeciesId: tradeSpecies?.id ?? null,
+
+        regionId: region?.id ?? null,
+
+        versionGroupId: versionGroup?.id ?? null,
+
+        locationId: location?.id ?? null,
+
+        isDefault: evolutionDetail.is_default ?? null,
+
+        baseFormId: baseForm?.id ?? null,
+        evolvedFormId: evolvedForm?.id ?? null,
+
         /**
-         * PokeAPI utiliza una cadena vacia cuando no existe un restriccion de hora.
+         * Los flags booleanos de PokeAPI representan requisitos especiales.
          *
-         * En la base de datos se prefiere null para representar ausencia de una condicion.
+         * Cuando son false, la condicion no existe, por lo que se almacena null.
+         * De esta forma EvolutionRule representa solamente restricciones reales.
          */
+        needsOverworldRain: evolutionDetail.needs_overworld_rain ? true : null,
+
+        turnUpsideDown: evolutionDetail.turn_upside_down ? true : null,
+
+        nearSpecialRock: evolutionDetail.near_special_rock ? true : null,
+
+        needsMultiplayer: evolutionDetail.needs_multiplayer ? true : null,
+
+        // PokeAPI utiliza una cadena vacia cuando no existe una restriccion de hora.
         timeOfDay:
           evolutionDetail.time_of_day === ''
             ? null
             : evolutionDetail.time_of_day,
 
         itemId: item?.id ?? null,
+        heldItemId: heldItem?.id ?? null,
       },
     });
   }

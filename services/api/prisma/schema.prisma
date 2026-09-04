@@ -16,12 +16,14 @@ model PokemonSpecies {
   evolutionChainId    String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
-  generation Generation? @relation(fields: [generationId], references: [id])
+  generation          Generation?          @relation(fields: [generationId], references: [id])
   evolutionChain      EvolutionChain?      @relation(fields: [evolutionChainId], references: [id])
   pokemonSpeciesNames PokemonSpeciesName[]
   varieties           PokemonVariety[]
   evolutionsFrom      Evolution[]          @relation("EvolutionFrom")
   evolutionsTo        Evolution[]          @relation("EvolutionTo")
+  evolutionRulesParty EvolutionRule[]      @relation("EvolutionRulePartySpecies")
+  evolutionRulesTrade EvolutionRule[]      @relation("EvolutionRuleTradeSpecies")
   userCollections     UserCollection[]
   userFavorites       UserFavorite[]
 }
@@ -56,6 +58,9 @@ model PokemonVariety {
   pokemonAcquisitions     PokemonAcquisition[]
   pokemonVarietyAbilities PokemonVarietyAbility[]
   pokemonVarietyStats     PokemonVarietyStats?
+
+  evolutionRulesBaseForm    EvolutionRule[] @relation("EvolutionRuleBaseForm")
+  evolutionRulesEvolvedForm EvolutionRule[] @relation("EvolutionRuleEvolvedForm")
 }
 
 model PokemonForm {
@@ -71,14 +76,16 @@ model PokemonForm {
   versionGroupId      String?
   variety             PokemonVariety       @relation(fields: [varietyId], references: [id], onDelete: Cascade)
   UserCollectionForms UserCollectionForm[]
-  versionGroup VersionGroup? @relation(fields: [versionGroupId], references: [id])
+  versionGroup        VersionGroup?        @relation(fields: [versionGroupId], references: [id])
 }
 
 model Type {
-  id         String               @id @default(uuid())
-  externalId Int                  @unique
-  name       String
-  varieties  PokemonVarietyType[]
+  id                      String               @id @default(uuid())
+  externalId              Int                  @unique
+  name                    String
+  varieties               PokemonVarietyType[]
+  evolutionRulesKnownType EvolutionRule[]      @relation("EvolutionRuleKnownType")
+  evolutionRulesPartyType EvolutionRule[]      @relation("EvolutionRulePartyType")
 }
 
 model PokemonVarietyType {
@@ -94,12 +101,12 @@ model PokemonVarietyType {
 }
 
 model Generation {
-  id            String         @id @default(uuid())
-  externalId    Int            @unique @map("external_id")
-  name          String
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
 
   versionGroups VersionGroup[]
-  species PokemonSpecies[]
+  species       PokemonSpecies[]
 
   @@map("generations")
 }
@@ -111,6 +118,8 @@ model VersionGroup {
   generationId String     @map("generation_id")
   games        Game[]
   generation   Generation @relation(fields: [generationId], references: [id])
+
+  evolutionRules EvolutionRule[]
 
   forms PokemonForm[]
 
@@ -130,21 +139,23 @@ model Game {
 }
 
 model Region {
-  id         String     @id @default(uuid())
-  externalId Int        @unique @map("external_id")
-  name       String
-  locations  Location[]
+  id             String          @id @default(uuid())
+  externalId     Int             @unique @map("external_id")
+  name           String
+  locations      Location[]
+  evolutionRules EvolutionRule[]
 
   @@map("regions")
 }
 
 model Location {
-  id         String         @id @default(uuid())
-  externalId Int            @unique @map("external_id")
-  name       String
-  regionId   String         @map("region_id")
-  areas      LocationArea[]
-  region     Region         @relation(fields: [regionId], references: [id])
+  id             String          @id @default(uuid())
+  externalId     Int             @unique @map("external_id")
+  name           String
+  regionId       String          @map("region_id")
+  areas          LocationArea[]
+  region         Region          @relation(fields: [regionId], references: [id])
+  evolutionRules EvolutionRule[]
 
   @@map("locations")
 }
@@ -211,10 +222,11 @@ model EvolutionTrigger {
 }
 
 model Item {
-  id             String          @id @default(uuid())
-  externalId     Int             @unique @map("external_id")
-  name           String
-  evolutionRules EvolutionRule[]
+  id                     String          @id @default(uuid())
+  externalId             Int             @unique @map("external_id")
+  name                   String
+  evolutionRulesItem     EvolutionRule[] @relation("EvolutionRuleItem")
+  evolutionRulesHeldItem EvolutionRule[] @relation("EvolutionRuleHeldItem")
 
   @@map("items")
 }
@@ -232,24 +244,63 @@ model Evolution {
   trigger       EvolutionTrigger @relation(fields: [triggerId], references: [id])
 
   @@unique([chainId, fromSpeciesId, toSpeciesId, triggerId], name: "chainId_fromSpeciesId_toSpeciesId_triggerId")
-
   @@map("evolutions")
 }
 
 model EvolutionRule {
-  id             String    @id @default(uuid())
-  evolutionId    String    @map("evolution_id")
-  minLevel       Int?
+  id          String @id @default(uuid())
+  evolutionId String @map("evolution_id")
+
+  minLevel     Int?
+  minHappiness Int?
+  minBeauty    Int?
+  minAffection Int?
+  timeOfDay    String?
+
+  gender                Int?
+  relativePhysicalStats Int?
+  needsOverworldRain    Boolean?
+  turnUpsideDown        Boolean?
+  nearSpecialRock       Boolean?
+  needsMultiplayer      Boolean?
+
+  isDefault Boolean?
+
+  minMoveCount   Int?
+  minSteps       Int?
+  minDamageTaken Int?
+
   itemId         String?
-  minHappiness   Int?
-  minBeauty      Int?
-  minAffection   Int?
-  timeOfDay      String?
-  knownMoveId    String?
+  heldItemId     String?
   knownTypeId    String?
-  locationAreaId String?
-  evolution      Evolution @relation(fields: [evolutionId], references: [id], onDelete: Cascade)
-  item           Item?     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  locationId     String?
+  partySpeciesId String?
+  partyTypeId    String?
+  tradeSpeciesId String?
+  versionGroupId String?
+  regionId       String?
+
+  baseFormId    String?
+  evolvedFormId String?
+
+  baseForm    PokemonVariety? @relation("EvolutionRuleBaseForm", fields: [baseFormId], references: [id])
+  evolvedForm PokemonVariety? @relation("EvolutionRuleEvolvedForm", fields: [evolvedFormId], references: [id])
+
+  evolution Evolution @relation(fields: [evolutionId], references: [id], onDelete: Cascade)
+
+  item     Item? @relation("EvolutionRuleItem", fields: [itemId], references: [id], onDelete: Restrict)
+  heldItem Item? @relation("EvolutionRuleHeldItem", fields: [heldItemId], references: [id], onDelete: Restrict)
+
+  knownType Type? @relation("EvolutionRuleKnownType", fields: [knownTypeId], references: [id])
+  partyType Type? @relation("EvolutionRulePartyType", fields: [partyTypeId], references: [id])
+
+  location Location? @relation(fields: [locationId], references: [id])
+
+  partySpecies PokemonSpecies? @relation("EvolutionRulePartySpecies", fields: [partySpeciesId], references: [id])
+  tradeSpecies PokemonSpecies? @relation("EvolutionRuleTradeSpecies", fields: [tradeSpeciesId], references: [id])
+
+  versionGroup VersionGroup? @relation(fields: [versionGroupId], references: [id])
+  region       Region?       @relation(fields: [regionId], references: [id])
 
   @@map("evolution_rules")
 }

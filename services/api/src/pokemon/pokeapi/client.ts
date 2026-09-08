@@ -7,6 +7,10 @@ import {
   PokeApiVersion,
   PokeApiVersionGroup,
   PokeApiEvolutionChain,
+  PokeApiPokemonEncounter,
+  PokeApiLocationArea,
+  PokeApiLocation,
+  PokeApiEncounterConditionValue,
 } from './pokeapi.types.js';
 
 @Injectable()
@@ -83,19 +87,6 @@ export class PokeApiClient {
     return response.json() as Promise<PokeApiVersionGroup>;
   }
 
-  // Obtiene una version/juego concreto desde PokeAPI.
-  async getVersion(externalId: number): Promise<PokeApiVersion> {
-    const response = await fetch(`${this.baseUrl}/version/${externalId}`);
-
-    if (!response.ok) {
-      throw new InternalServerErrorException(
-        `PokeAPI returned status ${response.status}`,
-      );
-    }
-
-    return response.json() as Promise<PokeApiVersion>;
-  }
-
   async getEvolutionChain(externalId: number): Promise<PokeApiEvolutionChain> {
     const response = await fetch(
       `${this.baseUrl}/evolution-chain/${externalId}`,
@@ -108,5 +99,74 @@ export class PokeApiClient {
     }
 
     return response.json() as Promise<PokeApiEvolutionChain>;
+  }
+
+  async getPokemonEncounters(
+    externalId: number,
+  ): Promise<PokeApiPokemonEncounter[]> {
+    const url = `${this.baseUrl}/pokemon/${externalId}/encounters`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status} for ${url}`,
+      );
+    }
+
+    return response.json() as Promise<PokeApiPokemonEncounter[]>;
+  }
+
+  async getLocationArea(externalId: number): Promise<PokeApiLocationArea> {
+    const url = `${this.baseUrl}/location-area/${externalId}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status} for ${url}`,
+      );
+    }
+
+    return response.json() as Promise<PokeApiLocationArea>;
+  }
+
+  async getLocation(externalId: number): Promise<PokeApiLocation> {
+    const url = `${this.baseUrl}/location/${externalId}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status} for ${url}`,
+      );
+    }
+
+    return response.json() as Promise<PokeApiLocation>;
+  }
+
+  async getEncounterConditionValue(
+    externalId: number,
+  ): Promise<PokeApiEncounterConditionValue> {
+    const url = `${this.baseUrl}/encounter-condition-value/${externalId}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status} for ${url}`,
+      );
+    }
+
+    return response.json() as Promise<PokeApiEncounterConditionValue>;
+  }
+
+  async getVersion(externalId: number): Promise<PokeApiVersion> {
+    const url = `${this.baseUrl}/version/${externalId}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new InternalServerErrorException(
+        `PokeAPI returned status ${response.status} for ${url}`,
+      );
+    }
+
+    return response.json() as Promise<PokeApiVersion>;
   }
 }

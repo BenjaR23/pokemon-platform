@@ -2,6 +2,8 @@ import { PokemonService } from './pokemon.service.js';
 import { PokeApiClient } from './pokeapi/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ReferenceDataService } from './reference-data.service.js';
+import { EncounterService } from './encounter.service.js';
+import { createPokemonSyncContext } from './pokemon-sync-context.js';
 
 describe('PokemonService', () => {
   let service: PokemonService;
@@ -65,6 +67,10 @@ describe('PokemonService', () => {
     syncVersionGroup: jest.fn(),
   };
 
+  const encounterServiceMock = {
+    syncPokemonEncounters: jest.fn(),
+  };
+
   beforeEach(() => {
     // Reinicia llamadas, implementaciones y valores configurados
     // en los mocks para que cada test sea independiente.
@@ -75,6 +81,7 @@ describe('PokemonService', () => {
       pokeApiClientMock as unknown as PokeApiClient,
       prismaMock as unknown as PrismaService,
       referenceDataServiceMock as unknown as ReferenceDataService,
+      encounterServiceMock as unknown as EncounterService,
     );
 
     prismaMock.language.upsert.mockResolvedValue({
@@ -308,8 +315,10 @@ describe('PokemonService', () => {
     prismaMock.pokemonVarietyStats.upsert.mockResolvedValue({});
     prismaMock.pokemonForm.upsert.mockResolvedValue({});
 
+    const syncContext = createPokemonSyncContext();
+
     // Ejecutamos la sincronización.
-    const result = await service.syncSpecies(1);
+    const result = await service.syncSpecies(1, syncContext);
 
     // Se debe solicitar la especie correcta a PokeAPI.
     expect(pokeApiClientMock.getPokemonSpecies).toHaveBeenCalledWith(1);
@@ -317,7 +326,7 @@ describe('PokemonService', () => {
     // PokemonService debe delegar la sincronizacion de la generacion al servicio de datos de referencia.
     expect(referenceDataServiceMock.syncGeneration).toHaveBeenCalledWith(
       1,
-      undefined,
+      syncContext,
     );
 
     // La cadena evolutiva debe sincronizarse cuando existe.
@@ -438,6 +447,11 @@ describe('PokemonService', () => {
         versionGroupId: 'version-group-uuid',
       },
     });
+
+    expect(encounterServiceMock.syncPokemonEncounters).toHaveBeenCalledWith(
+      1,
+      syncContext,
+    );
 
     expect(pokeApiClientMock.getPokemonForm).toHaveBeenCalledWith(1);
 
@@ -759,13 +773,29 @@ describe('PokemonService', () => {
     // syncStats se ejecutara una vez por cada variedad.
     prismaMock.pokemonVarietyStats.upsert.mockResolvedValue({});
 
+    const syncContext = createPokemonSyncContext();
+
     // Se ejecuta la sincronizacion completa de la especie.
-    await service.syncSpecies(100);
+    await service.syncSpecies(100, syncContext);
 
     // Se debe consultar PokeAPI una vez por cada variedad.
     expect(pokeApiClientMock.getPokemon).toHaveBeenCalledTimes(2);
     expect(pokeApiClientMock.getPokemon).toHaveBeenNthCalledWith(1, 100);
     expect(pokeApiClientMock.getPokemon).toHaveBeenNthCalledWith(2, 101);
+
+    expect(encounterServiceMock.syncPokemonEncounters).toHaveBeenCalledTimes(2);
+
+    expect(encounterServiceMock.syncPokemonEncounters).toHaveBeenNthCalledWith(
+      1,
+      100,
+      syncContext,
+    );
+
+    expect(encounterServiceMock.syncPokemonEncounters).toHaveBeenNthCalledWith(
+      2,
+      101,
+      syncContext,
+    );
 
     // La variedad default debe persistirse correctamente.
     expect(prismaMock.pokemonVariety.upsert).toHaveBeenCalledWith({
@@ -989,7 +1019,7 @@ describe('PokemonService', () => {
 
     expect(referenceDataServiceMock.syncGeneration).toHaveBeenCalledWith(
       9,
-      undefined,
+      createPokemonSyncContext(),
     );
 
     // Como PokeAPI no entregó una cadena evolutiva,
@@ -1224,7 +1254,7 @@ describe('PokemonService', () => {
     expect(referenceDataServiceMock.syncVersionGroup).toHaveBeenCalledWith(
       15,
       undefined,
-      undefined,
+      createPokemonSyncContext(),
     );
 
     // Finalmente, PokemonForm debe utilizar el UUID interno

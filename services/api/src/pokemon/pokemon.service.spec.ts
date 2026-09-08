@@ -28,6 +28,8 @@ describe('PokemonService', () => {
     },
     pokemonSpecies: {
       upsert: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
     },
     pokemonVariety: {
       upsert: jest.fn(),
@@ -1419,5 +1421,96 @@ describe('PokemonService', () => {
 
     // Tampoco debe crearse un nombre localizado.
     expect(prismaMock.pokemonSpeciesName.upsert).not.toHaveBeenCalled();
+  });
+
+  it('returns pokemon list data from the database', async () => {
+    prismaMock.pokemonSpecies.findMany.mockResolvedValue([
+      {
+        id: 'species-uuid',
+        externalId: 1,
+        name: 'Bulbasaur',
+        generationId: 'generation-uuid',
+        evolutionChainId: 'evolution-chain-uuid',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        generation: {
+          externalId: 1,
+        },
+        varieties: [
+          {
+            types: [
+              {
+                type: {
+                  name: 'grass',
+                },
+              },
+              {
+                type: {
+                  name: 'poison',
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    prismaMock.pokemonSpecies.count.mockResolvedValue(1);
+
+    const result = await service.findAll(1, 24);
+
+    expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith({
+      skip: 0,
+      take: 24,
+      orderBy: {
+        externalId: 'asc',
+      },
+      include: {
+        generation: {
+          select: {
+            externalId: true,
+          },
+        },
+        varieties: {
+          where: {
+            isDefault: true,
+          },
+          take: 1,
+          select: {
+            types: {
+              orderBy: {
+                slot: 'asc',
+              },
+              select: {
+                type: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      items: [
+        {
+          id: 1,
+          name: 'Bulbasaur',
+          generation: 1,
+          image:
+            'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png',
+          types: ['grass', 'poison'],
+        },
+      ],
+      pagination: {
+        page: 1,
+        pageSize: 24,
+        total: 1,
+        totalPages: 1,
+      },
+    });
   });
 });

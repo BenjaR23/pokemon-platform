@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { PokeApiClient } from './pokeapi/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ReferenceDataService } from './reference-data.service.js';
-import type { PokemonSyncContext } from './pokemon-sync-context.js';
+import {
+  PokemonSyncContext,
+  createPokemonSyncContext,
+} from './pokemon-sync-context.js';
+import { EncounterService } from './encounter.service.js';
 
 // Extrae el ID numerico de una URL de recurso de PokeAPI.
 function getExternalIdFromUrl(url: string): number {
@@ -26,6 +30,8 @@ export class PokemonService {
 
     // Servicio responsable de sincronizar datos de referencia compartidos por muchas especies.
     private readonly referenceDataService: ReferenceDataService,
+
+    private readonly encounterService: EncounterService,
   ) {}
 
   /**
@@ -37,7 +43,10 @@ export class PokemonService {
    * 3. Resolver la cadena evolutiva asociada.
    * 4. Crear o actualizar la especie de PostgreSQL.
    */
-  async syncSpecies(externalId: number, syncContext?: PokemonSyncContext) {
+  async syncSpecies(
+    externalId: number,
+    syncContext: PokemonSyncContext = createPokemonSyncContext(),
+  ) {
     // Obtenemos la informacion de la especie desde PokeAPI.
     const species = await this.pokeApiClient.getPokemonSpecies(externalId);
 
@@ -127,6 +136,11 @@ export class PokemonService {
       await this.syncAbilities(savedVariety.id, pokemon.abilities);
       await this.syncStats(savedVariety.id, pokemon.stats);
       await this.syncForms(savedVariety.id, pokemon.forms, syncContext);
+
+      await this.encounterService.syncPokemonEncounters(
+        pokemon.id,
+        syncContext,
+      );
     }
 
     // Por ahora se devuelve PokemonSpecies.

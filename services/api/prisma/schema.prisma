@@ -307,7 +307,7 @@ model EvolutionRule {
 
 model AcquisitionType {
   id           String               @id @default(uuid())
-  externalId   Int                  @unique @map("external_id")
+  code String @unique
   name         String
   acquisitions PokemonAcquisition[]
 

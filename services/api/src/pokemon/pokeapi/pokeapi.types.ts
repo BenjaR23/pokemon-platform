@@ -143,3 +143,46 @@ export interface PokeApiEvolutionDetail {
 
   time_of_day: string;
 }
+
+export interface PokeApiPokemonEncounter {
+  location_area: PokeApiNamedResource;
+  version_details: PokeApiEncounterVersionDetail[];
+}
+
+export interface PokeApiEncounterVersionDetail {
+  version: PokeApiNamedResource;
+  max_chance: number;
+  encounter_details: PokeApiEncounterDetail[];
+}
+
+export interface PokeApiEncounterDetail {
+  min_level: number;
+  max_level: number;
+  condition_values: PokeApiNamedResource[];
+  chance: number;
+  method: PokeApiNamedResource;
+}
+
+export interface PokeApiLocationArea {
+  id: number;
+  name: string;
+  location: PokeApiNamedResource;
+}
+
+export interface PokeApiLocation {
+  id: number;
+  name: string;
+  region: PokeApiNamedResource;
+}
+
+export interface PokeApiEncounterConditionValue {
+  id: number;
+  name: string;
+  condition: PokeApiNamedResource;
+}
+
+export interface PokeApiVersion {
+  id: number;
+  name: string;
+  version_group: PokeApiNamedResource;
+}

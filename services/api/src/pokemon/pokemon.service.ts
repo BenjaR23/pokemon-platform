@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PokeApiClient } from './pokeapi/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ReferenceDataService } from './reference-data.service.js';
@@ -529,6 +529,270 @@ export class PokemonService {
         total,
         totalPages: Math.ceil(total / pageSize),
       },
+    };
+  }
+
+  async findOne(externalId: number) {
+    const pokemon = await this.prisma.pokemonSpecies.findUnique({
+      where: {
+        externalId,
+      },
+      include: {
+        generation: {
+          select: {
+            externalId: true,
+            name: true,
+          },
+        },
+        varieties: {
+          where: {
+            isDefault: true,
+          },
+          take: 1,
+          select: {
+            types: {
+              orderBy: {
+                slot: 'asc',
+              },
+              select: {
+                type: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            pokemonVarietyAbilities: {
+              select: {
+                ability: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            pokemonVarietyStats: {
+              select: {
+                hp: true,
+                attack: true,
+                defense: true,
+                specialAttack: true,
+                specialDefense: true,
+                speed: true,
+              },
+            },
+          },
+        },
+        evolutionChain: {
+          select: {
+            species: {
+              select: {
+                id: true,
+                externalId: true,
+                name: true,
+              },
+            },
+            evolution: {
+              select: {
+                id: true,
+                fromSpeciesId: true,
+                toSpeciesId: true,
+                fromSpecies: {
+                  select: {
+                    externalId: true,
+                    name: true,
+                  },
+                },
+                toSpecies: {
+                  select: {
+                    externalId: true,
+                    name: true,
+                  },
+                },
+                trigger: {
+                  select: {
+                    name: true,
+                  },
+                },
+                rules: {
+                  include: {
+                    item: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    heldItem: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    knownType: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    location: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    partySpecies: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
+                    partyType: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    tradeSpecies: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
+                    region: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    baseForm: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
+                    evolvedForm: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!pokemon) {
+      throw new NotFoundException(
+        `Pokemon with id ${externalId} was not found`,
+      );
+    }
+
+    const defaultVariety = pokemon.varieties[0];
+
+    const evolutionChain = pokemon.evolutionChain
+      ? {
+          pokemon: pokemon.evolutionChain.species
+            .sort((a, b) => a.externalId - b.externalId)
+            .map((species) => ({
+              id: species.externalId,
+              name: species.name,
+              image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${species.externalId}.png`,
+            })),
+          connections: pokemon.evolutionChain.evolution.map((evolution) => ({
+            from: evolution.fromSpecies.externalId,
+            to: evolution.toSpecies.externalId,
+          })),
+        }
+      : null;
+
+    const nextEvolutions =
+      pokemon.evolutionChain?.evolution
+        .filter(
+          (evolution) =>
+            evolution.fromSpecies.externalId === pokemon.externalId,
+        )
+        .map((evolution) => ({
+          pokemon: {
+            id: evolution.toSpecies.externalId,
+            name: evolution.toSpecies.name,
+            image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${evolution.toSpecies.externalId}.png`,
+          },
+          trigger: evolution.trigger.name,
+          rules: evolution.rules.map((rule) => ({
+            minLevel: rule.minLevel,
+            minHappiness: rule.minHappiness,
+            minBeauty: rule.minBeauty,
+            minAffection: rule.minAffection,
+            timeOfDay: rule.timeOfDay,
+
+            gender: rule.gender,
+            relativePhysicalStats: rule.relativePhysicalStats,
+            needsOverworldRain: rule.needsOverworldRain,
+            turnUpsideDown: rule.turnUpsideDown,
+            nearSpecialRock: rule.nearSpecialRock,
+            needsMultiplayer: rule.needsMultiplayer,
+
+            minMoveCount: rule.minMoveCount,
+            minSteps: rule.minSteps,
+            minDamageTaken: rule.minDamageTaken,
+
+            item: rule.item?.name ?? null,
+            heldItem: rule.heldItem?.name ?? null,
+            knownType: rule.knownType?.name ?? null,
+            location: rule.location?.name ?? null,
+
+            partySpecies: rule.partySpecies
+              ? {
+                  id: rule.partySpecies.externalId,
+                  name: rule.partySpecies.name,
+                }
+              : null,
+
+            partyType: rule.partyType?.name ?? null,
+
+            tradeSpecies: rule.tradeSpecies
+              ? {
+                  id: rule.tradeSpecies.externalId,
+                  name: rule.tradeSpecies.name,
+                }
+              : null,
+
+            region: rule.region?.name ?? null,
+
+            baseForm: rule.baseForm
+              ? {
+                  id: rule.baseForm.externalId,
+                  name: rule.baseForm.name,
+                }
+              : null,
+
+            evolvedForm: rule.evolvedForm
+              ? {
+                  id: rule.evolvedForm.externalId,
+                  name: rule.evolvedForm.name,
+                }
+              : null,
+          })),
+        })) ?? [];
+
+    return {
+      id: pokemon.externalId,
+      name: pokemon.name,
+      generation: pokemon.generation
+        ? {
+            id: pokemon.generation.externalId,
+            name: pokemon.generation.name,
+          }
+        : null,
+      image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemon.externalId}.png`,
+      types:
+        defaultVariety?.types.map((pokemonType) => pokemonType.type.name) ?? [],
+      abilities:
+        defaultVariety?.pokemonVarietyAbilities.map(
+          (pokemonAbility) => pokemonAbility.ability.name,
+        ) ?? [],
+      stats: defaultVariety?.pokemonVarietyStats ?? null,
+
+      evolutionChain,
+      nextEvolutions,
     };
   }
 }

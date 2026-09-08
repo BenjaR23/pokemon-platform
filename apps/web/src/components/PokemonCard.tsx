@@ -1,4 +1,5 @@
 import type { PokemonListItem } from "../types/pokemon";
+import { Link } from "react-router-dom";
 
 interface PokemonCardProps {
     pokemon: PokemonListItem;
@@ -6,8 +7,8 @@ interface PokemonCardProps {
 
 export function PokemonCard({ pokemon }: PokemonCardProps) {
     return (
-        <a
-            href={`/pokemon/${pokemon.id}`}
+        <Link
+            to={`/pokemon/${pokemon.id}`}
             className="group flex min-h-44 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 transition hover:border-zinc-600 hover:bg-zinc-800"
         >
             <div className="flex w-2/5 items-center justify-center bg-zinc-950 p-4">
@@ -40,6 +41,6 @@ export function PokemonCard({ pokemon }: PokemonCardProps) {
                     ))}
                 </div>
             </div>
-        </a>
+        </Link>
     )
 }

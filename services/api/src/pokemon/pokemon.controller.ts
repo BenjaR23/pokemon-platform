@@ -22,7 +22,7 @@ export class PokemonController {
   // Sincroniza una especie individual desde PokeAPI.
   @Get(':id')
   async getPokemon(@Param('id', ParseIntPipe) id: number) {
-    return this.pokemonService.syncSpecies(id);
+    return this.pokemonService.findOne(id);
   }
 
   @Get()

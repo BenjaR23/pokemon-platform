@@ -30,6 +30,7 @@ describe('PokemonService', () => {
       upsert: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+      findUnique: jest.fn(),
     },
     pokemonVariety: {
       upsert: jest.fn(),
@@ -1512,5 +1513,438 @@ describe('PokemonService', () => {
         totalPages: 1,
       },
     });
+  });
+
+  it('returns pokemon detail data from the database', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
+      id: 'species-uuid',
+      externalId: 1,
+      name: 'Bulbasaur',
+      generationId: 'generation-uuid',
+      evolutionChainId: 'evolution-chain-uuid',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      generation: {
+        externalId: 1,
+        name: 'generation-i',
+      },
+      varieties: [
+        {
+          types: [
+            {
+              type: {
+                name: 'grass',
+              },
+            },
+            {
+              type: {
+                name: 'poison',
+              },
+            },
+          ],
+          pokemonVarietyAbilities: [
+            {
+              ability: {
+                name: 'overgrow',
+              },
+            },
+            {
+              ability: {
+                name: 'chlorophyll',
+              },
+            },
+          ],
+          pokemonVarietyStats: {
+            hp: 45,
+            attack: 49,
+            defense: 49,
+            specialAttack: 65,
+            specialDefense: 65,
+            speed: 45,
+          },
+        },
+      ],
+      evolutionChain: {
+        species: [
+          {
+            id: 'bulbasaur-uuid',
+            externalId: 1,
+            name: 'Bulbasaur',
+          },
+          {
+            id: 'ivysaur-uuid',
+            externalId: 2,
+            name: 'Ivysaur',
+          },
+          {
+            id: 'venusaur-uuid',
+            externalId: 3,
+            name: 'Venusaur',
+          },
+        ],
+        evolution: [
+          {
+            id: 'evolution-1',
+            fromSpeciesId: 'bulbasaur-uuid',
+            toSpeciesId: 'ivysaur-uuid',
+            fromSpecies: {
+              externalId: 1,
+              name: 'Bulbasaur',
+            },
+            toSpecies: {
+              externalId: 2,
+              name: 'Ivysaur',
+            },
+            trigger: {
+              name: 'level-up',
+            },
+            rules: [
+              {
+                minLevel: 16,
+                minHappiness: null,
+                minBeauty: null,
+                minAffection: null,
+                timeOfDay: null,
+                gender: null,
+                relativePhysicalStats: null,
+                needsOverworldRain: null,
+                turnUpsideDown: null,
+                nearSpecialRock: null,
+                needsMultiplayer: null,
+                isDefault: null,
+                minMoveCount: null,
+                minSteps: null,
+                minDamageTaken: null,
+                itemId: null,
+                heldItemId: null,
+                knownTypeId: null,
+                locationId: null,
+                partySpeciesId: null,
+                partyTypeId: null,
+                tradeSpeciesId: null,
+                versionGroupId: null,
+                regionId: null,
+                baseFormId: null,
+                evolvedFormId: null,
+                item: null,
+                heldItem: null,
+                knownType: null,
+                location: null,
+                partySpecies: null,
+                partyType: null,
+                tradeSpecies: null,
+                region: null,
+                baseForm: null,
+                evolvedForm: null,
+              },
+            ],
+          },
+          {
+            id: 'evolution-2',
+            fromSpeciesId: 'ivysaur-uuid',
+            toSpeciesId: 'venusaur-uuid',
+            fromSpecies: {
+              externalId: 2,
+              name: 'Ivysaur',
+            },
+            toSpecies: {
+              externalId: 3,
+              name: 'Venusaur',
+            },
+            trigger: {
+              name: 'level-up',
+            },
+            rules: [
+              {
+                minLevel: 32,
+                minHappiness: null,
+                minBeauty: null,
+                minAffection: null,
+                timeOfDay: null,
+                gender: null,
+                relativePhysicalStats: null,
+                needsOverworldRain: null,
+                turnUpsideDown: null,
+                nearSpecialRock: null,
+                needsMultiplayer: null,
+                isDefault: null,
+                minMoveCount: null,
+                minSteps: null,
+                minDamageTaken: null,
+                itemId: null,
+                heldItemId: null,
+                knownTypeId: null,
+                locationId: null,
+                partySpeciesId: null,
+                partyTypeId: null,
+                tradeSpeciesId: null,
+                versionGroupId: null,
+                regionId: null,
+                baseFormId: null,
+                evolvedFormId: null,
+                item: null,
+                heldItem: null,
+                knownType: null,
+                location: null,
+                partySpecies: null,
+                partyType: null,
+                tradeSpecies: null,
+                region: null,
+                baseForm: null,
+                evolvedForm: null,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await service.findOne(1);
+
+    expect(prismaMock.pokemonSpecies.findUnique).toHaveBeenCalledWith({
+      where: {
+        externalId: 1,
+      },
+      include: {
+        generation: {
+          select: {
+            externalId: true,
+            name: true,
+          },
+        },
+        varieties: {
+          where: {
+            isDefault: true,
+          },
+          take: 1,
+          select: {
+            types: {
+              orderBy: {
+                slot: 'asc',
+              },
+              select: {
+                type: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            pokemonVarietyAbilities: {
+              select: {
+                ability: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            pokemonVarietyStats: {
+              select: {
+                hp: true,
+                attack: true,
+                defense: true,
+                specialAttack: true,
+                specialDefense: true,
+                speed: true,
+              },
+            },
+          },
+        },
+        evolutionChain: {
+          select: {
+            species: {
+              select: {
+                id: true,
+                externalId: true,
+                name: true,
+              },
+            },
+            evolution: {
+              select: {
+                id: true,
+                fromSpeciesId: true,
+                toSpeciesId: true,
+                fromSpecies: {
+                  select: {
+                    externalId: true,
+                    name: true,
+                  },
+                },
+                toSpecies: {
+                  select: {
+                    externalId: true,
+                    name: true,
+                  },
+                },
+                trigger: {
+                  select: {
+                    name: true,
+                  },
+                },
+                rules: {
+                  include: {
+                    item: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    heldItem: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    knownType: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    location: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    partySpecies: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
+                    partyType: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    tradeSpecies: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
+                    region: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    baseForm: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
+                    evolvedForm: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      id: 1,
+      name: 'Bulbasaur',
+      generation: {
+        id: 1,
+        name: 'generation-i',
+      },
+      image:
+        'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png',
+      types: ['grass', 'poison'],
+      abilities: ['overgrow', 'chlorophyll'],
+      stats: {
+        hp: 45,
+        attack: 49,
+        defense: 49,
+        specialAttack: 65,
+        specialDefense: 65,
+        speed: 45,
+      },
+      evolutionChain: {
+        pokemon: [
+          {
+            id: 1,
+            name: 'Bulbasaur',
+            image:
+              'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png',
+          },
+          {
+            id: 2,
+            name: 'Ivysaur',
+            image:
+              'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/2.png',
+          },
+          {
+            id: 3,
+            name: 'Venusaur',
+            image:
+              'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/3.png',
+          },
+        ],
+        connections: [
+          {
+            from: 1,
+            to: 2,
+          },
+          {
+            from: 2,
+            to: 3,
+          },
+        ],
+      },
+      nextEvolutions: [
+        {
+          pokemon: {
+            id: 2,
+            name: 'Ivysaur',
+            image:
+              'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/2.png',
+          },
+          trigger: 'level-up',
+          rules: [
+            {
+              minLevel: 16,
+              minHappiness: null,
+              minBeauty: null,
+              minAffection: null,
+              timeOfDay: null,
+              gender: null,
+              relativePhysicalStats: null,
+              needsOverworldRain: null,
+              turnUpsideDown: null,
+              nearSpecialRock: null,
+              needsMultiplayer: null,
+              minMoveCount: null,
+              minSteps: null,
+              minDamageTaken: null,
+              item: null,
+              heldItem: null,
+              knownType: null,
+              location: null,
+              partySpecies: null,
+              partyType: null,
+              tradeSpecies: null,
+              region: null,
+              baseForm: null,
+              evolvedForm: null,
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('throws when pokemon does not exist', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue(null);
+
+    await expect(service.findOne(999999)).rejects.toThrow(
+      'Pokemon with id 999999 was not found',
+    );
   });
 });

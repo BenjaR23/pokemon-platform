@@ -9,6 +9,8 @@ import {
 import { PokemonService } from './pokemon.service.js';
 import { PokemonSyncService } from './pokemon-sync.service.js';
 import { SyncPokemonRangeDto } from './dto/sync-pokemon-range.dto.js';
+import { Query } from '@nestjs/common';
+import { GetPokemonQueryDto } from './dto/get-pokemon-query.dto.js';
 
 @Controller('pokemon')
 export class PokemonController {
@@ -21,6 +23,11 @@ export class PokemonController {
   @Get(':id')
   async getPokemon(@Param('id', ParseIntPipe) id: number) {
     return this.pokemonService.syncSpecies(id);
+  }
+
+  @Get()
+  findAll(@Query() query: GetPokemonQueryDto) {
+    return this.pokemonService.findAll(query.page, query.pageSize);
   }
 
   /**

@@ -468,4 +468,67 @@ export class PokemonService {
       },
     });
   }
+
+  async findAll(page: number, pageSize: number) {
+    const skip = (page - 1) * pageSize;
+
+    const [species, total] = await Promise.all([
+      this.prisma.pokemonSpecies.findMany({
+        skip,
+        take: pageSize,
+        orderBy: {
+          externalId: 'asc',
+        },
+        include: {
+          generation: {
+            select: {
+              externalId: true,
+            },
+          },
+          varieties: {
+            where: {
+              isDefault: true,
+            },
+            take: 1,
+            select: {
+              types: {
+                orderBy: {
+                  slot: 'asc',
+                },
+                select: {
+                  type: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.pokemonSpecies.count(),
+    ]);
+
+    const items = species.map((pokemon) => ({
+      id: pokemon.externalId,
+      name: pokemon.name,
+      generation: pokemon.generation?.externalId ?? null,
+      image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemon.externalId}.png`,
+      types:
+        pokemon.varieties[0]?.types.map(
+          (pokemonType) => pokemonType.type.name,
+        ) ?? [],
+    }));
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
 }

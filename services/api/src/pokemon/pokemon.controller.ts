@@ -19,6 +19,16 @@ export class PokemonController {
     private readonly pokemonSyncService: PokemonSyncService,
   ) {}
 
+  @Get('types')
+  findTypes() {
+    return this.pokemonService.findTypes();
+  }
+
+  @Get('generations')
+  findGenerations() {
+    return this.pokemonService.findGenerations();
+  }
+
   // Sincroniza una especie individual desde PokeAPI.
   @Get(':id')
   async getPokemon(@Param('id', ParseIntPipe) id: number) {
@@ -27,7 +37,13 @@ export class PokemonController {
 
   @Get()
   findAll(@Query() query: GetPokemonQueryDto) {
-    return this.pokemonService.findAll(query.page, query.pageSize);
+    return this.pokemonService.findAll(
+      query.page,
+      query.pageSize,
+      query.search,
+      query.type,
+      query.generation,
+    );
   }
 
   @Get(':id/encounters')

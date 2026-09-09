@@ -7,6 +7,7 @@ import {
   createPokemonSyncContext,
 } from './pokemon-sync-context.js';
 import { EncounterService } from './encounter.service.js';
+import type { Prisma } from '../generated/prisma/client.js';
 
 // Extrae el ID numerico de una URL de recurso de PokeAPI.
 function getExternalIdFromUrl(url: string): number {
@@ -469,11 +470,59 @@ export class PokemonService {
     });
   }
 
-  async findAll(page: number, pageSize: number) {
+  async findAll(
+    page: number,
+    pageSize: number,
+    search?: string,
+    type?: string,
+    generation?: number,
+  ) {
     const skip = (page - 1) * pageSize;
+
+    const trimmedSearch = search?.trim();
+    const trimmedType = type?.trim();
+
+    const where: Prisma.PokemonSpeciesWhereInput = {};
+
+    if (trimmedSearch) {
+      const numericSearch = /^\d+$/.test(trimmedSearch)
+        ? Number(trimmedSearch)
+        : null;
+
+      if (numericSearch !== null) {
+        where.externalId = numericSearch;
+      } else {
+        where.name = {
+          contains: trimmedSearch,
+          mode: 'insensitive',
+        };
+      }
+    }
+
+    if (trimmedType) {
+      where.varieties = {
+        some: {
+          isDefault: true,
+          types: {
+            some: {
+              type: {
+                name: trimmedType,
+              },
+            },
+          },
+        },
+      };
+    }
+
+    if (generation) {
+      where.generation = {
+        externalId: generation,
+      };
+    }
 
     const [species, total] = await Promise.all([
       this.prisma.pokemonSpecies.findMany({
+        where,
         skip,
         take: pageSize,
         orderBy: {
@@ -507,7 +556,9 @@ export class PokemonService {
           },
         },
       }),
-      this.prisma.pokemonSpecies.count(),
+      this.prisma.pokemonSpecies.count({
+        where,
+      }),
     ]);
 
     const items = species.map((pokemon) => ({
@@ -935,5 +986,39 @@ export class PokemonService {
         })),
       })),
     };
+  }
+
+  async findTypes() {
+    const types = await this.prisma.type.findMany({
+      orderBy: {
+        externalId: 'asc',
+      },
+      select: {
+        externalId: true,
+        name: true,
+      },
+    });
+
+    return types.map((type) => ({
+      id: type.externalId,
+      name: type.name,
+    }));
+  }
+
+  async findGenerations() {
+    const generations = await this.prisma.generation.findMany({
+      orderBy: {
+        externalId: 'asc',
+      },
+      select: {
+        externalId: true,
+        name: true,
+      },
+    });
+
+    return generations.map((generation) => ({
+      id: generation.externalId,
+      name: generation.name,
+    }));
   }
 }

@@ -1,37 +1,49 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { PokemonDetail } from '../types/pokemon';
+import type { PokemonDetail, PokemonEncountersResponse } from '../types/pokemon';
 import { PokemonEvolution } from '../components/PokemonEvolution';
+import { PokemonEncounters } from '../components/PokemonEncounters';
 
 export function PokemonDetailPage() {
   const { id } = useParams();
   const [pokemon, setPokemon] = useState<PokemonDetail | null>(null);
+  const [encounterGames, setEncounterGames] = useState<PokemonEncountersResponse['games']>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadPokemon() {
+    async function fetchPokemon() {
       try {
         setIsLoading(true);
         setError(null);
 
-        const response = await fetch(`http://localhost:3000/pokemon/${id}`);
+        const [pokemonResponse, encountersResponse] = await Promise.all([
+            fetch(`http://localhost:3000/pokemon/${id}`),
+            fetch(`http://localhost:3000/pokemon/${id}/encounters`)
+          ])
 
-        if (!response.ok) {
-          throw new Error('Failed to load Pokemon');
+        if (!pokemonResponse.ok) {
+          throw new Error('Failed to fetch Pokemon');
         }
 
-        const data: PokemonDetail = await response.json();
+        if (!encountersResponse.ok) {
+          throw new Error('Failed to fecth Pokemon encounters');
+        }
 
-        setPokemon(data);
+        const pokemonData: PokemonDetail = await pokemonResponse.json();
+
+        const encountersData: PokemonEncountersResponse = await encountersResponse.json();
+
+        setPokemon(pokemonData);
+        setEncounterGames(encountersData.games);
       } catch {
-        setError('Could not load this Pokemon.');
+        setError('Could not load Pokemon.');
       } finally {
         setIsLoading(false);
       }
     }
 
-    void loadPokemon();
+    fetchPokemon();
   }, [id]);
 
   if (isLoading) {
@@ -141,6 +153,8 @@ export function PokemonDetailPage() {
           evolutionChain={pokemon.evolutionChain}
           nextEvolutions={pokemon.nextEvolutions}
         />
+
+        <PokemonEncounters games={encounterGames} />
       </div>
     </main>
   );

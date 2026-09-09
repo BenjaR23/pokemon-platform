@@ -30,6 +30,11 @@ export class PokemonController {
     return this.pokemonService.findAll(query.page, query.pageSize);
   }
 
+  @Get(':id/encounters')
+  findEncounters(@Param('id', ParseIntPipe) id: number) {
+    return this.pokemonService.findEncounters(id);
+  }
+
   /**
    * Ejecuta manualmente una sincronizacion de un rango de especies.
    *

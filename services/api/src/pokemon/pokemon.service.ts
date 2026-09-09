@@ -795,4 +795,145 @@ export class PokemonService {
       nextEvolutions,
     };
   }
+
+  async findEncounters(externalId: number) {
+    const pokemon = await this.prisma.pokemonSpecies.findUnique({
+      where: {
+        externalId,
+      },
+      select: {
+        externalId: true,
+        varieties: {
+          where: {
+            isDefault: true,
+          },
+          take: 1,
+          select: {
+            pokemonAcquisitions: {
+              orderBy: {
+                game: {
+                  externalId: 'asc',
+                },
+              },
+              select: {
+                acquisitionType: {
+                  select: {
+                    code: true,
+                    name: true,
+                  },
+                },
+                game: {
+                  select: {
+                    externalId: true,
+                    name: true,
+                    versionGroup: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                  },
+                },
+                encounters: {
+                  select: {
+                    locationArea: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                        location: {
+                          select: {
+                            externalId: true,
+                            name: true,
+                            region: {
+                              select: {
+                                name: true,
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                    method: {
+                      select: {
+                        name: true,
+                      },
+                    },
+                    details: {
+                      select: {
+                        minLevel: true,
+                        maxLevel: true,
+                        chance: true,
+                        conditions: {
+                          select: {
+                            conditionValue: {
+                              select: {
+                                name: true,
+                                condition: {
+                                  select: {
+                                    name: true,
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!pokemon) {
+      throw new NotFoundException(
+        `Pokemon with id ${externalId} was not found`,
+      );
+    }
+
+    const defaultVariety = pokemon.varieties[0];
+
+    if (!defaultVariety) {
+      return {
+        pokemonId: pokemon.externalId,
+        games: [],
+      };
+    }
+
+    return {
+      pokemonId: pokemon.externalId,
+      games: defaultVariety.pokemonAcquisitions.map((acquisition) => ({
+        id: acquisition.game.externalId,
+        name: acquisition.game.name,
+        versionGroup: acquisition.game.versionGroup.name,
+        acquisitionType: {
+          code: acquisition.acquisitionType.code,
+          name: acquisition.acquisitionType.name,
+        },
+        encounters: acquisition.encounters.map((encounter) => ({
+          location: {
+            id: encounter.locationArea.location.externalId,
+            name: encounter.locationArea.location.name,
+            region: encounter.locationArea.location.region.name,
+          },
+          area: {
+            id: encounter.locationArea.externalId,
+            name: encounter.locationArea.name,
+          },
+          method: encounter.method.name,
+          details: encounter.details.map((detail) => ({
+            minLevel: detail.minLevel,
+            maxLevel: detail.maxLevel,
+            chance: detail.chance,
+            conditions: detail.conditions.map((condition) => ({
+              type: condition.conditionValue.condition.name,
+              value: condition.conditionValue.name,
+            })),
+          })),
+        })),
+      })),
+    };
+  }
 }

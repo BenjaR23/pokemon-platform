@@ -1947,4 +1947,128 @@ describe('PokemonService', () => {
       'Pokemon with id 999999 was not found',
     );
   });
+
+  it('should return Pokemon encounters grouped by game acquisition', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
+      externalId: 1,
+      varieties: [
+        {
+          pokemonAcquisitions: [
+            {
+              acquisitionType: {
+                code: 'wild-encounter',
+                name: 'Wild encounter',
+              },
+              game: {
+                externalId: 1,
+                name: 'red',
+                versionGroup: {
+                  name: 'red-blue',
+                },
+              },
+              encounters: [
+                {
+                  locationArea: {
+                    externalId: 20,
+                    name: 'viridian-forest-area',
+                    location: {
+                      externalId: 18,
+                      name: 'viridian-forest',
+                      region: {
+                        name: 'kanto',
+                      },
+                    },
+                  },
+                  method: {
+                    name: 'walk',
+                  },
+                  details: [
+                    {
+                      minLevel: 3,
+                      maxLevel: 5,
+                      chance: 20,
+                      conditions: [
+                        {
+                          conditionValue: {
+                            name: 'time-day',
+                            condition: {
+                              name: 'time',
+                            },
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    const result = await service.findEncounters(1);
+
+    expect(result).toEqual({
+      pokemonId: 1,
+      games: [
+        {
+          id: 1,
+          name: 'red',
+          versionGroup: 'red-blue',
+          acquisitionType: {
+            code: 'wild-encounter',
+            name: 'Wild encounter',
+          },
+          encounters: [
+            {
+              location: {
+                id: 18,
+                name: 'viridian-forest',
+                region: 'kanto',
+              },
+              area: {
+                id: 20,
+                name: 'viridian-forest-area',
+              },
+              method: 'walk',
+              details: [
+                {
+                  minLevel: 3,
+                  maxLevel: 5,
+                  chance: 20,
+                  conditions: [
+                    {
+                      type: 'time',
+                      value: 'time-day',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('should throw when Pokemon encounters are requested for an unknown Pokemon', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue(null);
+
+    await expect(service.findEncounters(9999)).rejects.toThrow(
+      'Pokemon with id 9999 was not found',
+    );
+  });
+
+  it('should return an empty games array when the Pokemon has no default variety', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
+      externalId: 1,
+      varieties: [],
+    });
+
+    await expect(service.findEncounters(1)).resolves.toEqual({
+      pokemonId: 1,
+      games: [],
+    });
+  });
 });

@@ -100,3 +100,45 @@ export interface PokemonDetail {
   evolutionChain: PokemonEvolutionChain | null;
   nextEvolutions: PokemonNextEvolution[];
 }
+
+export interface PokemonEncounterCondition {
+  type: string;
+  value: string;
+}
+
+export interface PokemonEncounterDetail {
+  minLevel: number;
+  maxLevel: number;
+  chance: number | null;
+  conditions: PokemonEncounterCondition[];
+}
+
+export interface PokemonEncounter {
+  location: {
+    id: number;
+    name: string;
+    region: string;
+  };
+  area: {
+    id: number;
+    name: string;
+  };
+  method: string;
+  details: PokemonEncounterDetail[];
+}
+
+export interface PokemonEncounterGame {
+  id: number;
+  name: string;
+  versionGroup: string;
+  acquisitionType: {
+    code: string;
+    name: string;
+  };
+  encounters: PokemonEncounter[];
+}
+
+export interface PokemonEncountersResponse {
+  pokemonId: number;
+  games: PokemonEncounterGame[];
+}

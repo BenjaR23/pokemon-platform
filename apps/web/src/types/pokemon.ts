@@ -142,3 +142,13 @@ export interface PokemonEncountersResponse {
   pokemonId: number;
   games: PokemonEncounterGame[];
 }
+
+export interface PokemonTypeOption {
+  id: number;
+  name: string;
+}
+
+export interface PokemonGenerationOption {
+  id: number;
+  name: string;
+}

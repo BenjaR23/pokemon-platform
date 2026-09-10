@@ -8,6 +8,46 @@ import { createPokemonSyncContext } from './pokemon-sync-context.js';
 describe('PokemonService', () => {
   let service: PokemonService;
 
+  const createEvolutionRule = (overrides: Record<string, unknown> = {}) => ({
+    minLevel: null,
+    minHappiness: null,
+    minBeauty: null,
+    minAffection: null,
+    timeOfDay: null,
+    gender: null,
+    relativePhysicalStats: null,
+    needsOverworldRain: null,
+    turnUpsideDown: null,
+    nearSpecialRock: null,
+    needsMultiplayer: null,
+    isDefault: null,
+    minMoveCount: null,
+    minSteps: null,
+    minDamageTaken: null,
+    itemId: null,
+    heldItemId: null,
+    knownTypeId: null,
+    locationId: null,
+    partySpeciesId: null,
+    partyTypeId: null,
+    tradeSpeciesId: null,
+    versionGroupId: null,
+    regionId: null,
+    baseFormId: null,
+    evolvedFormId: null,
+    item: null,
+    heldItem: null,
+    knownType: null,
+    location: null,
+    partySpecies: null,
+    partyType: null,
+    tradeSpecies: null,
+    region: null,
+    baseForm: null,
+    evolvedForm: null,
+    ...overrides,
+  });
+
   // Mock del cliente de PokeAPI.
   // Evita realizar peticiones HTTP reales durante los tests unitarios.
   const pokeApiClientMock = {
@@ -1896,10 +1936,68 @@ describe('PokemonService', () => {
           {
             from: 1,
             to: 2,
+            trigger: 'level-up',
+            rules: [
+              {
+                minLevel: 16,
+                minHappiness: null,
+                minBeauty: null,
+                minAffection: null,
+                timeOfDay: null,
+                gender: null,
+                relativePhysicalStats: null,
+                needsOverworldRain: null,
+                turnUpsideDown: null,
+                nearSpecialRock: null,
+                needsMultiplayer: null,
+                minMoveCount: null,
+                minSteps: null,
+                minDamageTaken: null,
+                item: null,
+                heldItem: null,
+                knownType: null,
+                location: null,
+                partySpecies: null,
+                partyType: null,
+                tradeSpecies: null,
+                region: null,
+                baseForm: null,
+                evolvedForm: null,
+              },
+            ],
           },
           {
             from: 2,
             to: 3,
+            trigger: 'level-up',
+            rules: [
+              {
+                minLevel: 32,
+                minHappiness: null,
+                minBeauty: null,
+                minAffection: null,
+                timeOfDay: null,
+                gender: null,
+                relativePhysicalStats: null,
+                needsOverworldRain: null,
+                turnUpsideDown: null,
+                nearSpecialRock: null,
+                needsMultiplayer: null,
+                minMoveCount: null,
+                minSteps: null,
+                minDamageTaken: null,
+                item: null,
+                heldItem: null,
+                knownType: null,
+                location: null,
+                partySpecies: null,
+                partyType: null,
+                tradeSpecies: null,
+                region: null,
+                baseForm: null,
+                evolvedForm: null,
+              },
+            ],
           },
         ],
       },
@@ -1943,6 +2041,150 @@ describe('PokemonService', () => {
         },
       ],
     });
+  });
+
+  it('returns branching evolution connections with their evolution rules', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
+      externalId: 133,
+      name: 'Eevee',
+      generation: {
+        externalId: 1,
+        name: 'generation-i',
+      },
+      varieties: [],
+      evolutionChain: {
+        species: [
+          {
+            id: 'eevee-uuid',
+            externalId: 133,
+            name: 'Eevee',
+          },
+          {
+            id: 'vaporeon-uuid',
+            externalId: 134,
+            name: 'Vaporeon',
+          },
+          {
+            id: 'jolteon-uuid',
+            externalId: 135,
+            name: 'Jolteon',
+          },
+          {
+            id: 'flareon-uuid',
+            externalId: 136,
+            name: 'Flareon',
+          },
+        ],
+        evolution: [
+          {
+            id: 'evolution-vaporeon',
+            fromSpeciesId: 'eevee-uuid',
+            toSpeciesId: 'vaporeon-uuid',
+            fromSpecies: {
+              externalId: 133,
+              name: 'Eevee',
+            },
+            toSpecies: {
+              externalId: 134,
+              name: 'Vaporeon',
+            },
+            trigger: {
+              name: 'use-item',
+            },
+            rules: [
+              createEvolutionRule({
+                item: {
+                  name: 'water-stone',
+                },
+              }),
+            ],
+          },
+          {
+            id: 'evolution-jolteon',
+            fromSpeciesId: 'eevee-uuid',
+            toSpeciesId: 'jolteon-uuid',
+            fromSpecies: {
+              externalId: 133,
+              name: 'Eevee',
+            },
+            toSpecies: {
+              externalId: 135,
+              name: 'Jolteon',
+            },
+            trigger: {
+              name: 'use-item',
+            },
+            rules: [
+              createEvolutionRule({
+                item: {
+                  name: 'thunder-stone',
+                },
+              }),
+            ],
+          },
+          {
+            id: 'evolution-flareon',
+            fromSpeciesId: 'eevee-uuid',
+            toSpeciesId: 'flareon-uuid',
+            fromSpecies: {
+              externalId: 133,
+              name: 'Eevee',
+            },
+            toSpecies: {
+              externalId: 136,
+              name: 'Flareon',
+            },
+            trigger: {
+              name: 'use-item',
+            },
+            rules: [
+              createEvolutionRule({
+                item: {
+                  name: 'fire-stone',
+                },
+              }),
+            ],
+          },
+        ],
+      },
+    });
+
+    const result = await service.findOne(133);
+
+    expect(result.evolutionChain?.connections).toEqual([
+      expect.objectContaining({
+        from: 133,
+        to: 134,
+        trigger: 'use-item',
+        rules: [
+          expect.objectContaining({
+            item: 'water-stone',
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        from: 133,
+        to: 135,
+        trigger: 'use-item',
+        rules: [
+          expect.objectContaining({
+            item: 'thunder-stone',
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        from: 133,
+        to: 136,
+        trigger: 'use-item',
+        rules: [
+          expect.objectContaining({
+            item: 'fire-stone',
+          }),
+        ],
+      }),
+    ]);
+
+    expect(result.nextEvolutions).toHaveLength(3);
   });
 
   it('throws when pokemon does not exist', async () => {

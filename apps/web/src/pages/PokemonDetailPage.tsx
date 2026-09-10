@@ -12,6 +12,14 @@ export function PokemonDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant',
+    });
+  }, [id]);
+
+  useEffect(() => {
     async function fetchPokemon() {
       try {
         setIsLoading(true);

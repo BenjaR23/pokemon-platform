@@ -9,6 +9,67 @@ import {
 import { EncounterService } from './encounter.service.js';
 import type { Prisma } from '../generated/prisma/client.js';
 
+const evolutionRuleInclude = {
+  item: {
+    select: {
+      name: true,
+    },
+  },
+  heldItem: {
+    select: {
+      name: true,
+    },
+  },
+  knownType: {
+    select: {
+      name: true,
+    },
+  },
+  location: {
+    select: {
+      name: true,
+    },
+  },
+  partySpecies: {
+    select: {
+      externalId: true,
+      name: true,
+    },
+  },
+  partyType: {
+    select: {
+      name: true,
+    },
+  },
+  tradeSpecies: {
+    select: {
+      externalId: true,
+      name: true,
+    },
+  },
+  region: {
+    select: {
+      name: true,
+    },
+  },
+  baseForm: {
+    select: {
+      externalId: true,
+      name: true,
+    },
+  },
+  evolvedForm: {
+    select: {
+      externalId: true,
+      name: true,
+    },
+  },
+} satisfies Prisma.EvolutionRuleInclude;
+
+type EvolutionRuleWithRelations = Prisma.EvolutionRuleGetPayload<{
+  include: typeof evolutionRuleInclude;
+}>;
+
 // Extrae el ID numerico de una URL de recurso de PokeAPI.
 function getExternalIdFromUrl(url: string): number {
   const parts = url.split('/').filter(Boolean);
@@ -470,6 +531,64 @@ export class PokemonService {
     });
   }
 
+  private mapEvolutionRule(rule: EvolutionRuleWithRelations) {
+    return {
+      minLevel: rule.minLevel,
+      minHappiness: rule.minHappiness,
+      minBeauty: rule.minBeauty,
+      minAffection: rule.minAffection,
+      timeOfDay: rule.timeOfDay,
+
+      gender: rule.gender,
+      relativePhysicalStats: rule.relativePhysicalStats,
+      needsOverworldRain: rule.needsOverworldRain,
+      turnUpsideDown: rule.turnUpsideDown,
+      nearSpecialRock: rule.nearSpecialRock,
+      needsMultiplayer: rule.needsMultiplayer,
+
+      minMoveCount: rule.minMoveCount,
+      minSteps: rule.minSteps,
+      minDamageTaken: rule.minDamageTaken,
+
+      item: rule.item?.name ?? null,
+      heldItem: rule.heldItem?.name ?? null,
+      knownType: rule.knownType?.name ?? null,
+      location: rule.location?.name ?? null,
+
+      partySpecies: rule.partySpecies
+        ? {
+            id: rule.partySpecies.externalId,
+            name: rule.partySpecies.name,
+          }
+        : null,
+
+      partyType: rule.partyType?.name ?? null,
+
+      tradeSpecies: rule.tradeSpecies
+        ? {
+            id: rule.tradeSpecies.externalId,
+            name: rule.tradeSpecies.name,
+          }
+        : null,
+
+      region: rule.region?.name ?? null,
+
+      baseForm: rule.baseForm
+        ? {
+            id: rule.baseForm.externalId,
+            name: rule.baseForm.name,
+          }
+        : null,
+
+      evolvedForm: rule.evolvedForm
+        ? {
+            id: rule.evolvedForm.externalId,
+            name: rule.evolvedForm.name,
+          }
+        : null,
+    };
+  }
+
   async findAll(
     page: number,
     pageSize: number,
@@ -666,62 +785,7 @@ export class PokemonService {
                   },
                 },
                 rules: {
-                  include: {
-                    item: {
-                      select: {
-                        name: true,
-                      },
-                    },
-                    heldItem: {
-                      select: {
-                        name: true,
-                      },
-                    },
-                    knownType: {
-                      select: {
-                        name: true,
-                      },
-                    },
-                    location: {
-                      select: {
-                        name: true,
-                      },
-                    },
-                    partySpecies: {
-                      select: {
-                        externalId: true,
-                        name: true,
-                      },
-                    },
-                    partyType: {
-                      select: {
-                        name: true,
-                      },
-                    },
-                    tradeSpecies: {
-                      select: {
-                        externalId: true,
-                        name: true,
-                      },
-                    },
-                    region: {
-                      select: {
-                        name: true,
-                      },
-                    },
-                    baseForm: {
-                      select: {
-                        externalId: true,
-                        name: true,
-                      },
-                    },
-                    evolvedForm: {
-                      select: {
-                        externalId: true,
-                        name: true,
-                      },
-                    },
-                  },
+                  include: evolutionRuleInclude,
                 },
               },
             },
@@ -750,6 +814,8 @@ export class PokemonService {
           connections: pokemon.evolutionChain.evolution.map((evolution) => ({
             from: evolution.fromSpecies.externalId,
             to: evolution.toSpecies.externalId,
+            trigger: evolution.trigger.name,
+            rules: evolution.rules.map((rule) => this.mapEvolutionRule(rule)),
           })),
         }
       : null;
@@ -767,61 +833,7 @@ export class PokemonService {
             image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${evolution.toSpecies.externalId}.png`,
           },
           trigger: evolution.trigger.name,
-          rules: evolution.rules.map((rule) => ({
-            minLevel: rule.minLevel,
-            minHappiness: rule.minHappiness,
-            minBeauty: rule.minBeauty,
-            minAffection: rule.minAffection,
-            timeOfDay: rule.timeOfDay,
-
-            gender: rule.gender,
-            relativePhysicalStats: rule.relativePhysicalStats,
-            needsOverworldRain: rule.needsOverworldRain,
-            turnUpsideDown: rule.turnUpsideDown,
-            nearSpecialRock: rule.nearSpecialRock,
-            needsMultiplayer: rule.needsMultiplayer,
-
-            minMoveCount: rule.minMoveCount,
-            minSteps: rule.minSteps,
-            minDamageTaken: rule.minDamageTaken,
-
-            item: rule.item?.name ?? null,
-            heldItem: rule.heldItem?.name ?? null,
-            knownType: rule.knownType?.name ?? null,
-            location: rule.location?.name ?? null,
-
-            partySpecies: rule.partySpecies
-              ? {
-                  id: rule.partySpecies.externalId,
-                  name: rule.partySpecies.name,
-                }
-              : null,
-
-            partyType: rule.partyType?.name ?? null,
-
-            tradeSpecies: rule.tradeSpecies
-              ? {
-                  id: rule.tradeSpecies.externalId,
-                  name: rule.tradeSpecies.name,
-                }
-              : null,
-
-            region: rule.region?.name ?? null,
-
-            baseForm: rule.baseForm
-              ? {
-                  id: rule.baseForm.externalId,
-                  name: rule.baseForm.name,
-                }
-              : null,
-
-            evolvedForm: rule.evolvedForm
-              ? {
-                  id: rule.evolvedForm.externalId,
-                  name: rule.evolvedForm.name,
-                }
-              : null,
-          })),
+          rules: evolution.rules.map((rule) => this.mapEvolutionRule(rule)),
         })) ?? [];
 
     return {

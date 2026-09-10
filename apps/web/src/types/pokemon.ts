@@ -30,8 +30,18 @@ export interface PokemonEvolutionConnection {
 }
 
 export interface PokemonEvolutionChain {
-  pokemon: PokemonEvolutionSpecies[];
-  connections: PokemonEvolutionConnection[];
+  pokemon: {
+    id: number;
+    name: string;
+    image: string;
+  }[];
+
+  connections: {
+    from: number;
+    to: number;
+    trigger: string;
+    rules: PokemonEvolutionRule[];
+  }[];
 }
 
 export interface PokemonEvolutionRule {

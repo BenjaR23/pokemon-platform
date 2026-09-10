@@ -10,7 +10,6 @@ import { PokemonListLoader } from "../components/PokemonListLoader";
 
 export function PokedexPage() {
   const [pokemon, setPokemon] = useState<PokemonListItem[]>([]);
-  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +19,13 @@ export function PokedexPage() {
   const [selectedType, setSelectedType] = useState('');
   const [generations, setGenerations] = useState<PokemonGenerationOption[]>([]);
   const [selectedGeneration, setSelectedGeneration] = useState('');
+  const [page, setPage] = useState(() => {
+    const savedPage = Number(localStorage.getItem('pokedex-page'));
+
+    return Number.isInteger(savedPage) && savedPage > 0
+      ? savedPage
+      : 1;
+  });
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -30,6 +36,10 @@ export function PokedexPage() {
       clearTimeout(timeoutId);
     };
   }, [search]);
+
+  useEffect(() => {
+    localStorage.setItem('pokedex-page', page.toString());
+  }, [page]);
 
   useEffect(() => {
     async function fetchFilters() {
@@ -98,6 +108,9 @@ export function PokedexPage() {
 
         setPokemon(data.items);
         setTotalPages(data.pagination.totalPages);
+        if (data.pagination.totalPages > 0 && page > data.pagination.totalPages) {
+          setPage(data.pagination.totalPages);
+        }
       } catch {
         setError('Could not load Pokemon.');
       } finally {
@@ -110,6 +123,7 @@ export function PokedexPage() {
 
   const isSearchPending = search.trim() !== debouncedSearch;
   const showLoader = isLoading || isSearchPending;
+  const paginationItems = getPaginationItems(page, totalPages);
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -226,33 +240,87 @@ export function PokedexPage() {
         )}
 
         {!showLoader && !error && totalPages > 1 && (
-          <div className="mt-8 flex items-center justify-center gap-4">
+          <nav
+            aria-label="Pokedex pagination"
+            className="mt-8 flex flex-wrap items-center justify-center gap-2"
+          >
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              aria-label="First page"
+              className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              «
+            </button>
+
             <button
               type="button"
               onClick={() =>
-                setPage((currentPage) => currentPage - 1)
+                setPage((currentPage) => Math.max(1, currentPage - 1))
               }
               disabled={page === 1}
-              className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Previous page"
+              className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Previous
+              ‹
             </button>
 
-            <span className="text-sm text-zinc-400">
-              Page {page} of {totalPages}
-            </span>
+            {paginationItems.map((item) => {
+              if (typeof item !== 'number') {
+                return (
+                  <span
+                    key={item}
+                    className="px-2 text-sm text-zinc-600"
+                  >
+                    ...
+                  </span>
+                );
+              }
+
+              const isCurrentPage = item === page;
+
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setPage(item)}
+                  aria-current={isCurrentPage ? 'page' : undefined}
+                  className={
+                    isCurrentPage
+                      ? 'cursor-default rounded-lg border border-zinc-500 bg-zinc-700 px-3 py-2 text-sm font-medium text-white'
+                      : 'cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800'
+                  }
+                >
+                  {item}
+                </button>
+              );
+            })}
 
             <button
               type="button"
               onClick={() =>
-                setPage((currentPage) => currentPage + 1)
+                setPage((currentPage) =>
+                  Math.min(totalPages, currentPage + 1),
+                )
               }
               disabled={page === totalPages}
-              className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Next page"
+              className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Next
+              ›
             </button>
-          </div>
+
+            <button
+              type="button"
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages}
+              aria-label="Last page"
+              className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              »
+            </button>
+          </nav>
         )}
       </div>
     </main>
@@ -264,4 +332,48 @@ function formatName(value: string) {
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
+}
+
+function getPaginationItems(
+  currentPage: number,
+  totalPages: number,
+): Array<number | 'ellipsis-start' | 'ellipsis-end'> {
+  if (totalPages <= 9) {
+    return Array.from(
+      { length: totalPages },
+      (_, index) => index + 1,
+    );
+  }
+
+  const items: Array<number | 'ellipsis-start' | 'ellipsis-end'> = [];
+
+  const firstPages = [1, 2];
+  const lastPages = [totalPages - 1, totalPages];
+
+  items.push(...firstPages);
+
+  const middleStart = Math.max(3, currentPage - 2);
+  const middleEnd = Math.min(totalPages - 2, currentPage + 2);
+
+  if (middleStart > 3) {
+    items.push('ellipsis-start');
+  }
+
+  for (let pageNumber = middleStart; pageNumber <= middleEnd; pageNumber++) {
+    if (!items.includes(pageNumber)) {
+      items.push(pageNumber);
+    }
+  }
+
+  if (middleEnd < totalPages - 2) {
+    items.push('ellipsis-end');
+  }
+
+  for (const pageNumber of lastPages) {
+    if (!items.includes(pageNumber)) {
+      items.push(pageNumber);
+    }
+  }
+
+  return items;
 }

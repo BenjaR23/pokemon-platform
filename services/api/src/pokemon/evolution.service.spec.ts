@@ -30,6 +30,9 @@ describe('EvolutionService', () => {
     item: {
       upsert: jest.fn(),
     },
+    move: {
+      upsert: jest.fn(),
+    },
     type: {
       upsert: jest.fn(),
     },
@@ -283,6 +286,9 @@ describe('EvolutionService', () => {
         itemId: null,
         heldItemId: null,
 
+        knownMoveId: null,
+        usedMoveId: null,
+
         knownTypeId: null,
         partyTypeId: null,
 
@@ -327,6 +333,9 @@ describe('EvolutionService', () => {
 
         itemId: null,
         heldItemId: null,
+
+        knownMoveId: null,
+        usedMoveId: null,
 
         knownTypeId: null,
         partyTypeId: null,
@@ -478,6 +487,9 @@ describe('EvolutionService', () => {
         itemId: 'thunder-stone-uuid',
         heldItemId: null,
 
+        knownMoveId: null,
+        usedMoveId: null,
+
         knownTypeId: null,
         partyTypeId: null,
 
@@ -626,6 +638,9 @@ describe('EvolutionService', () => {
         itemId: null,
         heldItemId: null,
 
+        knownMoveId: null,
+        usedMoveId: null,
+
         knownTypeId: null,
         partyTypeId: null,
 
@@ -670,6 +685,9 @@ describe('EvolutionService', () => {
 
         itemId: null,
         heldItemId: null,
+
+        knownMoveId: null,
+        usedMoveId: null,
 
         knownTypeId: null,
         partyTypeId: null,
@@ -766,6 +784,9 @@ describe('EvolutionService', () => {
 
         itemId: null,
         heldItemId: null,
+
+        knownMoveId: null,
+        usedMoveId: null,
 
         knownTypeId: null,
         partyTypeId: null,
@@ -873,6 +894,9 @@ describe('EvolutionService', () => {
 
         itemId: null,
         heldItemId: 'razor-claw-uuid',
+
+        knownMoveId: null,
+        usedMoveId: null,
 
         knownTypeId: null,
         partyTypeId: null,
@@ -1005,6 +1029,9 @@ describe('EvolutionService', () => {
         itemId: null,
         heldItemId: null,
 
+        knownMoveId: null,
+        usedMoveId: null,
+
         knownTypeId: 'dark-type-uuid',
         partyTypeId: 'fairy-type-uuid',
 
@@ -1130,6 +1157,9 @@ describe('EvolutionService', () => {
         itemId: null,
         heldItemId: null,
 
+        knownMoveId: null,
+        usedMoveId: null,
+
         knownTypeId: null,
         partyTypeId: null,
 
@@ -1235,6 +1265,9 @@ describe('EvolutionService', () => {
         itemId: null,
         heldItemId: null,
 
+        knownMoveId: null,
+        usedMoveId: null,
+
         knownTypeId: null,
         partyTypeId: null,
 
@@ -1329,6 +1362,9 @@ describe('EvolutionService', () => {
 
         itemId: null,
         heldItemId: null,
+
+        knownMoveId: null,
+        usedMoveId: null,
 
         knownTypeId: null,
         partyTypeId: null,
@@ -1429,6 +1465,9 @@ describe('EvolutionService', () => {
         itemId: null,
         heldItemId: null,
 
+        knownMoveId: null,
+        usedMoveId: null,
+
         knownTypeId: null,
         partyTypeId: null,
 
@@ -1517,6 +1556,9 @@ describe('EvolutionService', () => {
         itemId: null,
         heldItemId: null,
 
+        knownMoveId: null,
+        usedMoveId: null,
+
         knownTypeId: null,
         partyTypeId: null,
 
@@ -1598,6 +1640,9 @@ describe('EvolutionService', () => {
 
         itemId: null,
         heldItemId: null,
+
+        knownMoveId: null,
+        usedMoveId: null,
 
         knownTypeId: null,
         partyTypeId: null,
@@ -1713,6 +1758,9 @@ describe('EvolutionService', () => {
         itemId: null,
         heldItemId: null,
 
+        knownMoveId: null,
+        usedMoveId: null,
+
         knownTypeId: null,
         partyTypeId: null,
 
@@ -1725,6 +1773,149 @@ describe('EvolutionService', () => {
 
         baseFormId: 'base-variety-uuid',
         evolvedFormId: 'evolved-variety-uuid',
+      },
+    });
+  });
+
+  it('should synchronize known and used move evolution conditions', async () => {
+    pokeApiClientMock.getEvolutionChain.mockResolvedValue({
+      id: 900,
+      chain: {
+        species: {
+          name: 'species-one',
+          url: 'https://pokeapi.co/api/v2/pokemon-species/900/',
+        },
+        evolution_details: [],
+        evolves_to: [
+          {
+            species: {
+              name: 'species-two',
+              url: 'https://pokeapi.co/api/v2/pokemon-species/901/',
+            },
+            evolution_details: [
+              createEvolutionDetail({
+                known_move: {
+                  name: 'mimic',
+                  url: 'https://pokeapi.co/api/v2/move/102/',
+                },
+                used_move: {
+                  name: 'rage-fist',
+                  url: 'https://pokeapi.co/api/v2/move/889/',
+                },
+              }),
+            ],
+            evolves_to: [],
+          },
+        ],
+      },
+    });
+
+    prismaMock.evolutionChain.upsert.mockResolvedValue({
+      id: 'evolution-chain-uuid',
+      externalId: 900,
+    });
+
+    prismaMock.pokemonSpecies.findUnique
+      .mockResolvedValueOnce({
+        id: 'species-one-uuid',
+        externalId: 900,
+      })
+      .mockResolvedValueOnce({
+        id: 'species-two-uuid',
+        externalId: 901,
+      });
+
+    prismaMock.evolutionTrigger.upsert.mockResolvedValue({
+      id: 'level-up-trigger-uuid',
+    });
+
+    prismaMock.evolution.upsert.mockResolvedValue({
+      id: 'evolution-uuid',
+    });
+
+    prismaMock.move.upsert
+      .mockResolvedValueOnce({
+        id: 'mimic-uuid',
+        externalId: 102,
+        name: 'mimic',
+      })
+      .mockResolvedValueOnce({
+        id: 'rage-fist-uuid',
+        externalId: 889,
+        name: 'rage-fist',
+      });
+
+    await service.syncEvolutionChain(900);
+
+    expect(prismaMock.move.upsert).toHaveBeenCalledWith({
+      where: {
+        externalId: 102,
+      },
+      update: {
+        name: 'mimic',
+      },
+      create: {
+        externalId: 102,
+        name: 'mimic',
+      },
+    });
+
+    expect(prismaMock.move.upsert).toHaveBeenCalledWith({
+      where: {
+        externalId: 889,
+      },
+      update: {
+        name: 'rage-fist',
+      },
+      create: {
+        externalId: 889,
+        name: 'rage-fist',
+      },
+    });
+
+    expect(prismaMock.evolutionRule.create).toHaveBeenCalledWith({
+      data: {
+        evolutionId: 'evolution-uuid',
+
+        minLevel: null,
+        minHappiness: null,
+        minBeauty: null,
+        minAffection: null,
+
+        gender: null,
+        relativePhysicalStats: null,
+
+        minMoveCount: null,
+        minSteps: null,
+        minDamageTaken: null,
+
+        needsOverworldRain: null,
+        turnUpsideDown: null,
+        nearSpecialRock: null,
+        needsMultiplayer: null,
+
+        isDefault: null,
+
+        timeOfDay: null,
+
+        itemId: null,
+        heldItemId: null,
+
+        knownMoveId: 'mimic-uuid',
+        usedMoveId: 'rage-fist-uuid',
+
+        knownTypeId: null,
+        partyTypeId: null,
+
+        partySpeciesId: null,
+        tradeSpeciesId: null,
+
+        regionId: null,
+        versionGroupId: null,
+        locationId: null,
+
+        baseFormId: null,
+        evolvedFormId: null,
       },
     });
   });

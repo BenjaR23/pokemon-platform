@@ -1,38 +1,42 @@
 import { Link } from 'react-router-dom';
 import type {
   PokemonEvolutionChain,
+  PokemonEvolutionMethod,
   PokemonEvolutionRule,
   PokemonNextEvolution,
 } from '../types/pokemon';
 
 interface EvolutionNodeProps {
-  pokemonId: number;
+  nodeId: string;
   currentPokemonId: number;
 
-  pokemonById: Map<number, {
-    id: number;
-    name: string;
-    image: string;
-  }>;
-  childrenById: Map<number, number[]>;
-  evolutionByPokemonId: Map<
-    number,
+  pokemonById: Map<
+    string,
     {
-      trigger: string;
-      rules: PokemonEvolutionRule[];
+      nodeId: string;
+      id: number;
+      name: string;
+      image: string;
+      form: {
+        id: number;
+        name: string;
+      } | null;
     }
   >;
+
+  childrenById: Map<string, string[]>;
+  methodsByEdge: Map<string, PokemonEvolutionMethod[]>;
 }
 
 function EvolutionNode({
-  pokemonId,
+  nodeId,
   currentPokemonId,
   pokemonById,
   childrenById,
-  evolutionByPokemonId,
+  methodsByEdge,
 }: EvolutionNodeProps) {
-  const pokemon = pokemonById.get(pokemonId);
-  const children = childrenById.get(pokemonId) ?? [];
+  const pokemon = pokemonById.get(nodeId);
+  const children = childrenById.get(nodeId) ?? [];
 
   if (!pokemon) {
     return null;
@@ -74,28 +78,32 @@ function EvolutionNode({
               <div className="absolute left-1/2 top-0 h-px w-[calc(100%-4rem)] -translate-x-1/2 bg-zinc-700" />
             )}
 
-            {children.map((childId) => {
-              const evolution = evolutionByPokemonId.get(childId);
+            {children.map((childNodeId) => {
+              const methods = methodsByEdge.get(
+                `${nodeId}->${childNodeId}`,
+              );
 
               return (
                 <div
-                  key={childId}
+                  key={childNodeId}
                   className="relative flex flex-col items-center"
                 >
                   <div className="absolute -top-6 h-6 w-px bg-zinc-700" />
 
-                  {evolution && (
+                  {methods && (
                     <div className="mb-2 rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-center text-xs text-zinc-400">
-                      {formatEvolutionMethod(evolution)}
+                      {methods
+                        .map((method) => formatEvolutionMethod(method))
+                        .join(' or ')}
                     </div>
                   )}
 
                   <EvolutionNode
-                    pokemonId={childId}
+                    nodeId={childNodeId}
                     currentPokemonId={currentPokemonId}
                     pokemonById={pokemonById}
                     childrenById={childrenById}
-                    evolutionByPokemonId={evolutionByPokemonId}
+                    methodsByEdge={methodsByEdge}
                   />
                 </div>
               );
@@ -123,10 +131,13 @@ export function PokemonEvolution({
   }
 
   const pokemonById = new Map(
-    evolutionChain.pokemon.map((pokemon) => [pokemon.id, pokemon]),
+    evolutionChain.pokemon.map((pokemon) => [
+      pokemon.nodeId,
+      pokemon,
+    ]),
   );
 
-  const childrenById = new Map<number, number[]>();
+  const childrenById = new Map<string, string[]>();
 
   for (const connection of evolutionChain.connections) {
     const children = childrenById.get(connection.from) ?? [];
@@ -140,21 +151,18 @@ export function PokemonEvolution({
     evolutionChain.connections.map((connection) => connection.to),
   );
 
-  const rootPokemon = evolutionChain.pokemon.find(
-    (pokemon) => !childIds.has(pokemon.id),
+  const rootPokemonNodes = evolutionChain.pokemon.filter(
+    (pokemon) => !childIds.has(pokemon.nodeId),
   );
 
-  if (!rootPokemon) {
+  if (rootPokemonNodes.length === 0) {
     return null;
   }
 
-  const evolutionByPokemonId = new Map(
+  const methodsByEdge = new Map(
     evolutionChain.connections.map((connection) => [
-      connection.to,
-      {
-        trigger: connection.trigger,
-        rules: connection.rules,
-      },
+      `${connection.from}->${connection.to}`,
+      connection.methods,
     ]),
   );
 
@@ -166,13 +174,16 @@ export function PokemonEvolution({
 
       <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950 p-6">
         <div className="flex flex-wrap items-center justify-center gap-5">
-          <EvolutionNode
-            pokemonId={rootPokemon.id}
-            currentPokemonId={currentPokemonId}
-            pokemonById={pokemonById}
-            childrenById={childrenById}
-            evolutionByPokemonId={evolutionByPokemonId}
-          />
+          {rootPokemonNodes.map((rootPokemon) => (
+            <EvolutionNode
+              key={rootPokemon.nodeId}
+              nodeId={rootPokemon.nodeId}
+              currentPokemonId={currentPokemonId}
+              pokemonById={pokemonById}
+              childrenById={childrenById}
+              methodsByEdge={methodsByEdge}
+            />
+          ))}
         </div>
       </div>
 
@@ -185,7 +196,7 @@ export function PokemonEvolution({
           <div className="mt-4 space-y-4">
             {nextEvolutions.map((evolution) => (
               <div
-                key={evolution.pokemon.id}
+                key={evolution.pokemon.nodeId}
                 className="rounded-xl border border-zinc-800 bg-zinc-950 p-5"
               >
                 <div className="flex items-center gap-4">
@@ -209,22 +220,39 @@ export function PokemonEvolution({
                   </div>
                 </div>
 
-                <div className="mt-5 border-t border-zinc-900 pt-4">
-                  <p className="text-sm text-zinc-400">
-                    Trigger:{' '}
-                    <span className="text-zinc-200">
-                      {formatName(evolution.trigger)}
-                    </span>
-                  </p>
+                <div className="mt-5 space-y-4 border-t border-zinc-900 pt-4">
+                  {evolution.methods.map((method, methodIndex) => (
+                    <div key={`${method.trigger}-${methodIndex}`}>
+                      {methodIndex > 0 && (
+                        <p className="mb-4 text-center text-xs font-medium uppercase tracking-wider text-zinc-600">
+                          or
+                        </p>
+                      )}
 
-                  <div className="mt-3 space-y-2">
-                    {evolution.rules.map((rule, index) => (
-                      <EvolutionRuleDetails
-                        key={index}
-                        rule={rule}
-                      />
-                    ))}
-                  </div>
+                      <p className="text-sm text-zinc-400">
+                        Trigger:{' '}
+                        <span className="text-zinc-200">
+                          {formatName(method.trigger)}
+                        </span>
+                      </p>
+
+                      <div className="mt-3 space-y-2">
+                        {Array.from(
+                          new Map(
+                            method.rules.map((rule) => [
+                              getEvolutionRuleKey(rule),
+                              rule,
+                            ]),
+                          ).values(),
+                        ).map((rule) => (
+                          <EvolutionRuleDetails
+                            key={getEvolutionRuleKey(rule)}
+                            rule={rule}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -275,12 +303,48 @@ function getEvolutionRequirements(
     requirements.push(`Level ${rule.minLevel}`);
   }
 
+  if (rule.relativePhysicalStats !== null) {
+    if (rule.relativePhysicalStats > 0) {
+      requirements.push('Attack > Defense');
+    } else if (rule.relativePhysicalStats < 0) {
+      requirements.push('Attack < Defense');
+    } else {
+      requirements.push('Attack = Defense');
+    }
+  }
+
+  if (rule.gender !== null) {
+    if (rule.gender === 1) {
+      requirements.push('Female');
+    } else if (rule.gender === 2) {
+      requirements.push('Male');
+    }
+  }
+
   if (rule.item) {
     requirements.push(`Use ${formatName(rule.item)}`);
   }
 
   if (rule.heldItem) {
     requirements.push(`Hold ${formatName(rule.heldItem)}`);
+  }
+
+  if (rule.knownMove) {
+    requirements.push(`Know ${formatName(rule.knownMove.name)}`);
+  }
+
+  if (rule.usedMove && rule.minMoveCount !== null) {
+    requirements.push(
+      `Use ${formatName(rule.usedMove.name)} ${rule.minMoveCount} times`,
+    );
+  } else {
+    if (rule.usedMove) {
+      requirements.push(`Use ${formatName(rule.usedMove.name)}`);
+    }
+
+    if (rule.minMoveCount !== null) {
+      requirements.push(`${rule.minMoveCount}+ moves`);
+    }
   }
 
   if (rule.minHappiness !== null) {
@@ -347,10 +411,6 @@ function getEvolutionRequirements(
     requirements.push('Multiplayer required');
   }
 
-  if (rule.minMoveCount !== null) {
-    requirements.push(`${rule.minMoveCount}+ moves`);
-  }
-
   if (rule.minSteps !== null) {
     requirements.push(`${rule.minSteps}+ steps`);
   }
@@ -364,6 +424,10 @@ function getEvolutionRequirements(
   return requirements;
 }
 
+function getEvolutionRuleKey(rule: PokemonEvolutionRule): string {
+  return getEvolutionRequirements(rule).join('|');
+}
+
 function formatName(value: string) {
   return value
     .split('-')
@@ -375,36 +439,20 @@ function formatName(value: string) {
 }
 
 function formatEvolutionMethod(
-  evolution: {
-    trigger: string;
-    rules: PokemonEvolutionRule[];
-  },
+  method: PokemonEvolutionMethod,
 ) {
-  const rule = evolution.rules[0];
+  const alternatives = Array.from(
+    new Set(
+      method.rules
+        .map((rule) => getEvolutionRequirements(rule))
+        .filter((requirements) => requirements.length > 0)
+        .map((requirements) => requirements.join(' + ')),
+    ),
+  );
 
-  if (!rule) {
-    return formatName(evolution.trigger);
+  if (alternatives.length === 0) {
+    return formatName(method.trigger);
   }
 
-  if (rule.item) {
-    return `Use ${formatName(rule.item)}`;
-  }
-
-  if (rule.minLevel) {
-    return `Level ${rule.minLevel}`;
-  }
-
-  if (rule.heldItem) {
-    return `Hold ${formatName(rule.heldItem)}`;
-  }
-
-  if (rule.minHappiness) {
-    return `Happiness ${rule.minHappiness}`;
-  }
-
-  if (rule.timeOfDay) {
-    return formatName(rule.timeOfDay);
-  }
-
-  return formatName(evolution.trigger);
+  return alternatives.join(' or ');
 }

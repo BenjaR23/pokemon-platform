@@ -20,6 +20,18 @@ const evolutionRuleInclude = {
       name: true,
     },
   },
+  knownMove: {
+    select: {
+      externalId: true,
+      name: true,
+    },
+  },
+  usedMove: {
+    select: {
+      externalId: true,
+      name: true,
+    },
+  },
   knownType: {
     select: {
       name: true,
@@ -50,6 +62,18 @@ const evolutionRuleInclude = {
   region: {
     select: {
       name: true,
+    },
+  },
+  versionGroup: {
+    select: {
+      externalId: true,
+      name: true,
+      generation: {
+        select: {
+          externalId: true,
+          name: true,
+        },
+      },
     },
   },
   baseForm: {
@@ -552,6 +576,21 @@ export class PokemonService {
 
       item: rule.item?.name ?? null,
       heldItem: rule.heldItem?.name ?? null,
+
+      knownMove: rule.knownMove
+        ? {
+            id: rule.knownMove.externalId,
+            name: rule.knownMove.name,
+          }
+        : null,
+
+      usedMove: rule.usedMove
+        ? {
+            id: rule.usedMove.externalId,
+            name: rule.usedMove.name,
+          }
+        : null,
+
       knownType: rule.knownType?.name ?? null,
       location: rule.location?.name ?? null,
 
@@ -572,6 +611,17 @@ export class PokemonService {
         : null,
 
       region: rule.region?.name ?? null,
+
+      versionGroup: rule.versionGroup
+        ? {
+            id: rule.versionGroup.externalId,
+            name: rule.versionGroup.name,
+            generation: {
+              id: rule.versionGroup.generation.externalId,
+              name: rule.versionGroup.generation.name,
+            },
+          }
+        : null,
 
       baseForm: rule.baseForm
         ? {
@@ -802,39 +852,155 @@ export class PokemonService {
 
     const defaultVariety = pokemon.varieties[0];
 
+    type EvolutionNode = {
+      nodeId: string;
+      id: number;
+      name: string;
+      image: string;
+      form: {
+        id: number;
+        name: string;
+      } | null;
+    };
+
+    type EvolutionMethod = {
+      trigger: string;
+      rules: ReturnType<PokemonService['mapEvolutionRule']>[];
+    };
+
+    type EvolutionConnection = {
+      from: string;
+      to: string;
+      pokemon: EvolutionNode;
+      methods: EvolutionMethod[];
+    };
+
+    const evolutionNodes = new Map<string, EvolutionNode>();
+
+    if (pokemon.evolutionChain) {
+      for (const species of pokemon.evolutionChain.species) {
+        const nodeId = `${species.externalId}:default`;
+
+        evolutionNodes.set(nodeId, {
+          nodeId,
+          id: species.externalId,
+          name: species.name,
+          image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${species.externalId}.png`,
+          form: null,
+        });
+      }
+    }
+
+    const groupedConnections = pokemon.evolutionChain
+      ? Array.from(
+          pokemon.evolutionChain.evolution
+            .reduce((connections, evolution) => {
+              for (const rule of evolution.rules) {
+                const fromSpeciesId = evolution.fromSpecies.externalId;
+                const toSpeciesId = evolution.toSpecies.externalId;
+
+                const fromNodeId = rule.baseForm
+                  ? `${fromSpeciesId}:${rule.baseForm.externalId}`
+                  : `${fromSpeciesId}:default`;
+
+                const toNodeId = rule.evolvedForm
+                  ? `${toSpeciesId}:${rule.evolvedForm.externalId}`
+                  : `${toSpeciesId}:default`;
+
+                if (rule.baseForm && !evolutionNodes.has(fromNodeId)) {
+                  evolutionNodes.set(fromNodeId, {
+                    nodeId: fromNodeId,
+                    id: fromSpeciesId,
+                    name: rule.baseForm.name,
+                    image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${rule.baseForm.externalId}.png`,
+                    form: {
+                      id: rule.baseForm.externalId,
+                      name: rule.baseForm.name,
+                    },
+                  });
+                }
+
+                if (rule.evolvedForm && !evolutionNodes.has(toNodeId)) {
+                  evolutionNodes.set(toNodeId, {
+                    nodeId: toNodeId,
+                    id: toSpeciesId,
+                    name: rule.evolvedForm.name,
+                    image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${rule.evolvedForm.externalId}.png`,
+                    form: {
+                      id: rule.evolvedForm.externalId,
+                      name: rule.evolvedForm.name,
+                    },
+                  });
+                }
+
+                const connectionKey = `${fromNodeId}->${toNodeId}`;
+                const mappedRule = this.mapEvolutionRule(rule);
+
+                const existingConnection = connections.get(connectionKey);
+
+                if (existingConnection) {
+                  const existingMethod = existingConnection.methods.find(
+                    (method) => method.trigger === evolution.trigger.name,
+                  );
+
+                  if (existingMethod) {
+                    existingMethod.rules.push(mappedRule);
+                  } else {
+                    existingConnection.methods.push({
+                      trigger: evolution.trigger.name,
+                      rules: [mappedRule],
+                    });
+                  }
+                } else {
+                  const targetPokemon = evolutionNodes.get(toNodeId);
+
+                  if (!targetPokemon) {
+                    throw new Error(
+                      `Evolution node ${toNodeId} could not be created`,
+                    );
+                  }
+
+                  connections.set(connectionKey, {
+                    from: fromNodeId,
+                    to: toNodeId,
+                    pokemon: targetPokemon,
+                    methods: [
+                      {
+                        trigger: evolution.trigger.name,
+                        rules: [mappedRule],
+                      },
+                    ],
+                  });
+                }
+              }
+
+              return connections;
+            }, new Map<string, EvolutionConnection>())
+            .values(),
+        )
+      : [];
+
     const evolutionChain = pokemon.evolutionChain
       ? {
-          pokemon: pokemon.evolutionChain.species
-            .sort((a, b) => a.externalId - b.externalId)
-            .map((species) => ({
-              id: species.externalId,
-              name: species.name,
-              image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${species.externalId}.png`,
-            })),
-          connections: pokemon.evolutionChain.evolution.map((evolution) => ({
-            from: evolution.fromSpecies.externalId,
-            to: evolution.toSpecies.externalId,
-            trigger: evolution.trigger.name,
-            rules: evolution.rules.map((rule) => this.mapEvolutionRule(rule)),
+          pokemon: Array.from(evolutionNodes.values()),
+          connections: groupedConnections.map((connection) => ({
+            from: connection.from,
+            to: connection.to,
+            methods: connection.methods,
           })),
         }
       : null;
 
-    const nextEvolutions =
-      pokemon.evolutionChain?.evolution
-        .filter(
-          (evolution) =>
-            evolution.fromSpecies.externalId === pokemon.externalId,
-        )
-        .map((evolution) => ({
-          pokemon: {
-            id: evolution.toSpecies.externalId,
-            name: evolution.toSpecies.name,
-            image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${evolution.toSpecies.externalId}.png`,
-          },
-          trigger: evolution.trigger.name,
-          rules: evolution.rules.map((rule) => this.mapEvolutionRule(rule)),
-        })) ?? [];
+    const nextEvolutions = groupedConnections
+      .filter(
+        (connection) =>
+          evolutionNodes.get(connection.from)?.id === pokemon.externalId,
+      )
+      .map((connection) => ({
+        from: evolutionNodes.get(connection.from)!,
+        pokemon: connection.pokemon,
+        methods: connection.methods,
+      }));
 
     return {
       id: pokemon.externalId,

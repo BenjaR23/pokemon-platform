@@ -19,29 +19,30 @@ export interface PokemonListResponse {
 }
 
 export interface PokemonEvolutionSpecies {
+  nodeId: string;
   id: number;
   name: string;
   image: string;
+  form: {
+    id: number;
+    name: string;
+  } | null;
+}
+
+export interface PokemonEvolutionMethod {
+  trigger: string;
+  rules: PokemonEvolutionRule[];
 }
 
 export interface PokemonEvolutionConnection {
-  from: number;
-  to: number;
+  from: string;
+  to: string;
+  methods: PokemonEvolutionMethod[];
 }
 
 export interface PokemonEvolutionChain {
-  pokemon: {
-    id: number;
-    name: string;
-    image: string;
-  }[];
-
-  connections: {
-    from: number;
-    to: number;
-    trigger: string;
-    rules: PokemonEvolutionRule[];
-  }[];
+  pokemon: PokemonEvolutionSpecies[];
+  connections: PokemonEvolutionConnection[];
 }
 
 export interface PokemonEvolutionRule {
@@ -61,6 +62,14 @@ export interface PokemonEvolutionRule {
   minDamageTaken: number | null;
   item: string | null;
   heldItem: string | null;
+  knownMove: {
+    id: number;
+    name: string;
+  } | null;
+  usedMove: {
+    id: number;
+    name: string;
+  } | null;
   knownType: string | null;
   location: string | null;
   partySpecies: {
@@ -73,6 +82,14 @@ export interface PokemonEvolutionRule {
     name: string;
   } | null;
   region: string | null;
+  versionGroup: {
+    id: number;
+    name: string;
+    generation: {
+      id: number;
+      name: string;
+    };
+  } | null;
   baseForm: {
     id: number;
     name: string;
@@ -84,9 +101,9 @@ export interface PokemonEvolutionRule {
 }
 
 export interface PokemonNextEvolution {
+  from: PokemonEvolutionSpecies;
   pokemon: PokemonEvolutionSpecies;
-  trigger: string;
-  rules: PokemonEvolutionRule[];
+  methods: PokemonEvolutionMethod[];
 }
 
 export interface PokemonDetail {

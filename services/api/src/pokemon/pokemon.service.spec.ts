@@ -1679,6 +1679,7 @@ describe('PokemonService', () => {
                 partyType: null,
                 tradeSpecies: null,
                 region: null,
+                versionGroup: null,
                 baseForm: null,
                 evolvedForm: null,
               },
@@ -1735,6 +1736,7 @@ describe('PokemonService', () => {
                 partyType: null,
                 tradeSpecies: null,
                 region: null,
+                versionGroup: null,
                 baseForm: null,
                 evolvedForm: null,
               },
@@ -1839,6 +1841,18 @@ describe('PokemonService', () => {
                         name: true,
                       },
                     },
+                    knownMove: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
+                    usedMove: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                      },
+                    },
                     knownType: {
                       select: {
                         name: true,
@@ -1869,6 +1883,18 @@ describe('PokemonService', () => {
                     region: {
                       select: {
                         name: true,
+                      },
+                    },
+                    versionGroup: {
+                      select: {
+                        externalId: true,
+                        name: true,
+                        generation: {
+                          select: {
+                            externalId: true,
+                            name: true,
+                          },
+                        },
                       },
                     },
                     baseForm: {
@@ -1914,88 +1940,108 @@ describe('PokemonService', () => {
       evolutionChain: {
         pokemon: [
           {
+            nodeId: '1:default',
             id: 1,
             name: 'Bulbasaur',
             image:
               'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png',
+            form: null,
           },
           {
+            nodeId: '2:default',
             id: 2,
             name: 'Ivysaur',
             image:
               'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/2.png',
+            form: null,
           },
           {
+            nodeId: '3:default',
             id: 3,
             name: 'Venusaur',
             image:
               'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/3.png',
+            form: null,
           },
         ],
         connections: [
           {
-            from: 1,
-            to: 2,
-            trigger: 'level-up',
-            rules: [
+            from: '1:default',
+            to: '2:default',
+            methods: [
               {
-                minLevel: 16,
-                minHappiness: null,
-                minBeauty: null,
-                minAffection: null,
-                timeOfDay: null,
-                gender: null,
-                relativePhysicalStats: null,
-                needsOverworldRain: null,
-                turnUpsideDown: null,
-                nearSpecialRock: null,
-                needsMultiplayer: null,
-                minMoveCount: null,
-                minSteps: null,
-                minDamageTaken: null,
-                item: null,
-                heldItem: null,
-                knownType: null,
-                location: null,
-                partySpecies: null,
-                partyType: null,
-                tradeSpecies: null,
-                region: null,
-                baseForm: null,
-                evolvedForm: null,
+                trigger: 'level-up',
+                rules: [
+                  {
+                    minLevel: 16,
+                    minHappiness: null,
+                    minBeauty: null,
+                    minAffection: null,
+                    timeOfDay: null,
+                    gender: null,
+                    relativePhysicalStats: null,
+                    needsOverworldRain: null,
+                    turnUpsideDown: null,
+                    nearSpecialRock: null,
+                    needsMultiplayer: null,
+                    minMoveCount: null,
+                    minSteps: null,
+                    minDamageTaken: null,
+                    item: null,
+                    heldItem: null,
+                    knownMove: null,
+                    usedMove: null,
+                    knownType: null,
+                    location: null,
+                    partySpecies: null,
+                    partyType: null,
+                    tradeSpecies: null,
+                    region: null,
+                    versionGroup: null,
+                    baseForm: null,
+                    evolvedForm: null,
+                  },
+                ],
               },
             ],
           },
           {
-            from: 2,
-            to: 3,
-            trigger: 'level-up',
-            rules: [
+            from: '2:default',
+            to: '3:default',
+            methods: [
               {
-                minLevel: 32,
-                minHappiness: null,
-                minBeauty: null,
-                minAffection: null,
-                timeOfDay: null,
-                gender: null,
-                relativePhysicalStats: null,
-                needsOverworldRain: null,
-                turnUpsideDown: null,
-                nearSpecialRock: null,
-                needsMultiplayer: null,
-                minMoveCount: null,
-                minSteps: null,
-                minDamageTaken: null,
-                item: null,
-                heldItem: null,
-                knownType: null,
-                location: null,
-                partySpecies: null,
-                partyType: null,
-                tradeSpecies: null,
-                region: null,
-                baseForm: null,
-                evolvedForm: null,
+                trigger: 'level-up',
+                rules: [
+                  {
+                    minLevel: 32,
+                    minHappiness: null,
+                    minBeauty: null,
+                    minAffection: null,
+                    timeOfDay: null,
+                    gender: null,
+                    relativePhysicalStats: null,
+                    needsOverworldRain: null,
+                    turnUpsideDown: null,
+                    nearSpecialRock: null,
+                    needsMultiplayer: null,
+                    minMoveCount: null,
+                    minSteps: null,
+                    minDamageTaken: null,
+                    item: null,
+                    heldItem: null,
+                    knownMove: null,
+                    usedMove: null,
+                    knownType: null,
+                    location: null,
+                    partySpecies: null,
+                    partyType: null,
+                    tradeSpecies: null,
+                    region: null,
+                    versionGroup: null,
+                    baseForm: null,
+                    evolvedForm: null,
+                  },
+                ],
               },
             ],
           },
@@ -2003,39 +2049,57 @@ describe('PokemonService', () => {
       },
       nextEvolutions: [
         {
+          from: {
+            nodeId: '1:default',
+            id: 1,
+            name: 'Bulbasaur',
+            image:
+              'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png',
+            form: null,
+          },
           pokemon: {
+            nodeId: '2:default',
             id: 2,
             name: 'Ivysaur',
             image:
               'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/2.png',
+
+            form: null,
           },
-          trigger: 'level-up',
-          rules: [
+          methods: [
             {
-              minLevel: 16,
-              minHappiness: null,
-              minBeauty: null,
-              minAffection: null,
-              timeOfDay: null,
-              gender: null,
-              relativePhysicalStats: null,
-              needsOverworldRain: null,
-              turnUpsideDown: null,
-              nearSpecialRock: null,
-              needsMultiplayer: null,
-              minMoveCount: null,
-              minSteps: null,
-              minDamageTaken: null,
-              item: null,
-              heldItem: null,
-              knownType: null,
-              location: null,
-              partySpecies: null,
-              partyType: null,
-              tradeSpecies: null,
-              region: null,
-              baseForm: null,
-              evolvedForm: null,
+              trigger: 'level-up',
+              rules: [
+                {
+                  minLevel: 16,
+                  minHappiness: null,
+                  minBeauty: null,
+                  minAffection: null,
+                  timeOfDay: null,
+                  gender: null,
+                  relativePhysicalStats: null,
+                  needsOverworldRain: null,
+                  turnUpsideDown: null,
+                  nearSpecialRock: null,
+                  needsMultiplayer: null,
+                  minMoveCount: null,
+                  minSteps: null,
+                  minDamageTaken: null,
+                  item: null,
+                  heldItem: null,
+                  knownMove: null,
+                  usedMove: null,
+                  knownType: null,
+                  location: null,
+                  partySpecies: null,
+                  partyType: null,
+                  tradeSpecies: null,
+                  region: null,
+                  versionGroup: null,
+                  baseForm: null,
+                  evolvedForm: null,
+                },
+              ],
             },
           ],
         },
@@ -2153,33 +2217,45 @@ describe('PokemonService', () => {
 
     expect(result.evolutionChain?.connections).toEqual([
       expect.objectContaining({
-        from: 133,
-        to: 134,
-        trigger: 'use-item',
-        rules: [
-          expect.objectContaining({
-            item: 'water-stone',
-          }),
+        from: '133:default',
+        to: '134:default',
+        methods: [
+          {
+            trigger: 'use-item',
+            rules: [
+              expect.objectContaining({
+                item: 'water-stone',
+              }),
+            ],
+          },
         ],
       }),
       expect.objectContaining({
-        from: 133,
-        to: 135,
-        trigger: 'use-item',
-        rules: [
-          expect.objectContaining({
-            item: 'thunder-stone',
-          }),
+        from: '133:default',
+        to: '135:default',
+        methods: [
+          {
+            trigger: 'use-item',
+            rules: [
+              expect.objectContaining({
+                item: 'thunder-stone',
+              }),
+            ],
+          },
         ],
       }),
       expect.objectContaining({
-        from: 133,
-        to: 136,
-        trigger: 'use-item',
-        rules: [
-          expect.objectContaining({
-            item: 'fire-stone',
-          }),
+        from: '133:default',
+        to: '136:default',
+        methods: [
+          {
+            trigger: 'use-item',
+            rules: [
+              expect.objectContaining({
+                item: 'fire-stone',
+              }),
+            ],
+          },
         ],
       }),
     ]);

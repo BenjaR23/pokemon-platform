@@ -197,6 +197,27 @@ export class EvolutionService {
     });
   }
 
+  private async syncMove(moveResource: PokeApiNamedResource | null) {
+    if (!moveResource) {
+      return null;
+    }
+
+    const externalId = getExternalIdFromUrl(moveResource.url);
+
+    return this.prisma.move.upsert({
+      where: {
+        externalId,
+      },
+      update: {
+        name: moveResource.name,
+      },
+      create: {
+        externalId,
+        name: moveResource.name,
+      },
+    });
+  }
+
   private async syncType(typeResource: PokeApiNamedResource | null) {
     if (!typeResource) {
       return null;
@@ -302,6 +323,9 @@ export class EvolutionService {
     const item = await this.syncItem(evolutionDetail.item);
     const heldItem = await this.syncItem(evolutionDetail.held_item);
 
+    const knownMove = await this.syncMove(evolutionDetail.known_move);
+    const usedMove = await this.syncMove(evolutionDetail.used_move);
+
     const knownType = await this.syncType(evolutionDetail.known_move_type);
     const partyType = await this.syncType(evolutionDetail.party_type);
 
@@ -311,7 +335,7 @@ export class EvolutionService {
     const region = await this.syncRegion(evolutionDetail.region);
 
     const versionGroup = await this.syncVersionGroup(
-      evolutionDetail.version_group_id,
+      evolutionDetail.version_group_id ?? null,
     );
 
     const location = await this.findLocation(evolutionDetail.location);
@@ -337,6 +361,9 @@ export class EvolutionService {
         minMoveCount: evolutionDetail.min_move_count,
         minSteps: evolutionDetail.min_steps,
         minDamageTaken: evolutionDetail.min_damage_taken,
+
+        knownMoveId: knownMove?.id ?? null,
+        usedMoveId: usedMove?.id ?? null,
 
         knownTypeId: knownType?.id ?? null,
         partyTypeId: partyType?.id ?? null,

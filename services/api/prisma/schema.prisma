@@ -231,6 +231,17 @@ model Item {
   @@map("items")
 }
 
+model Move {
+  id         String @id @default(uuid())
+  externalId Int    @unique @map("external_id")
+  name       String
+
+  evolutionRulesKnownMove EvolutionRule[] @relation("EvolutionRuleKnownMove")
+  evolutionRulesUsedMove  EvolutionRule[] @relation("EvolutionRuleUsedMove")
+
+  @@map("moves")
+}
+
 model Evolution {
   id            String           @id @default(uuid())
   chainId       String           @map("chain_id")
@@ -272,6 +283,8 @@ model EvolutionRule {
 
   itemId         String?
   heldItemId     String?
+  knownMoveId    String?
+  usedMoveId     String?
   knownTypeId    String?
   locationId     String?
   partySpeciesId String?
@@ -291,6 +304,9 @@ model EvolutionRule {
   item     Item? @relation("EvolutionRuleItem", fields: [itemId], references: [id], onDelete: Restrict)
   heldItem Item? @relation("EvolutionRuleHeldItem", fields: [heldItemId], references: [id], onDelete: Restrict)
 
+  knownMove Move? @relation("EvolutionRuleKnownMove", fields: [knownMoveId], references: [id])
+  usedMove  Move? @relation("EvolutionRuleUsedMove", fields: [usedMoveId], references: [id])
+
   knownType Type? @relation("EvolutionRuleKnownType", fields: [knownTypeId], references: [id])
   partyType Type? @relation("EvolutionRulePartyType", fields: [partyTypeId], references: [id])
 
@@ -307,7 +323,7 @@ model EvolutionRule {
 
 model AcquisitionType {
   id           String               @id @default(uuid())
-  code String @unique
+  code         String               @unique
   name         String
   acquisitions PokemonAcquisition[]
 

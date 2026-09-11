@@ -114,12 +114,13 @@ export interface PokeApiEvolutionDetail {
   held_item: PokeApiNamedResource | null;
   known_move: PokeApiNamedResource | null;
   known_move_type: PokeApiNamedResource | null;
+  used_move: PokeApiNamedResource | null;
   location: PokeApiNamedResource | null;
   party_species: PokeApiNamedResource | null;
   party_type: PokeApiNamedResource | null;
   trade_species: PokeApiNamedResource | null;
 
-  version_group_id: PokeApiNamedResource | null;
+  version_group_id?: PokeApiNamedResource | null;
   region: PokeApiNamedResource | null;
   base_form: PokeApiNamedResource | null;
   evolved_form: PokeApiNamedResource | null;

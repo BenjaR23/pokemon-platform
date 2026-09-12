@@ -9,6 +9,10 @@ function App() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<PokedexPage />}/>
         <Route path="/pokemon/:id" element={<PokemonDetailPage />} />
+        <Route
+          path="pokemon/:id/variants/:variantId"
+          element={<PokemonDetailPage />}
+        />
       </Route>
     </Routes>
   )

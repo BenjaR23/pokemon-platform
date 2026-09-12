@@ -106,16 +106,32 @@ export interface PokemonNextEvolution {
   methods: PokemonEvolutionMethod[];
 }
 
-export interface PokemonDetail {
+export interface PokemonVariantSummary {
   id: number;
   name: string;
+  isDefault: boolean;
+}
+
+export interface PokemonDetail {
+  id: number;
+
+  name: string;
+
   generation: {
     id: number;
     name: string;
   } | null;
+
+  variants: PokemonVariantSummary[];
+
+  selectedVariant: PokemonVariantSummary;
+
   image: string;
+
   types: string[];
+
   abilities: string[];
+
   stats: {
     hp: number;
     attack: number;
@@ -124,7 +140,9 @@ export interface PokemonDetail {
     specialDefense: number;
     speed: number;
   } | null;
+
   evolutionChain: PokemonEvolutionChain | null;
+
   nextEvolutions: PokemonNextEvolution[];
 }
 

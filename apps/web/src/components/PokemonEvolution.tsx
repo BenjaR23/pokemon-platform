@@ -8,7 +8,7 @@ import type {
 
 interface EvolutionNodeProps {
   nodeId: string;
-  currentPokemonId: number;
+  currentPokemonNodeId: string;
 
   pokemonById: Map<
     string,
@@ -30,7 +30,7 @@ interface EvolutionNodeProps {
 
 function EvolutionNode({
   nodeId,
-  currentPokemonId,
+  currentPokemonNodeId,
   pokemonById,
   childrenById,
   methodsByEdge,
@@ -42,12 +42,16 @@ function EvolutionNode({
     return null;
   }
 
-  const isCurrentPokemon = pokemon.id === currentPokemonId;
+  const isCurrentPokemon = pokemon.nodeId === currentPokemonNodeId;
+
+  const pokemonPath = pokemon.form
+    ? `/pokemon/${pokemon.id}/variants/${pokemon.form.id}`
+    : `/pokemon/${pokemon.id}`;
 
   return (
     <div className="flex flex-col items-center">
       <Link
-        to={`/pokemon/${pokemon.id}`}
+        to={pokemonPath}
         className={`flex flex-col items-center rounded-xl border p-3 transition ${
           isCurrentPokemon
             ? 'border-zinc-600 bg-zinc-800'
@@ -100,7 +104,7 @@ function EvolutionNode({
 
                   <EvolutionNode
                     nodeId={childNodeId}
-                    currentPokemonId={currentPokemonId}
+                    currentPokemonNodeId={currentPokemonNodeId}
                     pokemonById={pokemonById}
                     childrenById={childrenById}
                     methodsByEdge={methodsByEdge}
@@ -116,13 +120,13 @@ function EvolutionNode({
 }
 
 interface PokemonEvolutionProps {
-  currentPokemonId: number;
+  currentPokemonNodeId: string;
   evolutionChain: PokemonEvolutionChain | null;
   nextEvolutions: PokemonNextEvolution[];
 }
 
 export function PokemonEvolution({
-  currentPokemonId,
+  currentPokemonNodeId,
   evolutionChain,
   nextEvolutions,
 }: PokemonEvolutionProps) {
@@ -178,7 +182,7 @@ export function PokemonEvolution({
             <EvolutionNode
               key={rootPokemon.nodeId}
               nodeId={rootPokemon.nodeId}
-              currentPokemonId={currentPokemonId}
+              currentPokemonNodeId={currentPokemonNodeId}
               pokemonById={pokemonById}
               childrenById={childrenById}
               methodsByEdge={methodsByEdge}
@@ -212,7 +216,9 @@ export function PokemonEvolution({
                     </p>
 
                     <Link
-                      to={`/pokemon/${evolution.pokemon.id}`}
+                      to={evolution.pokemon.form
+                            ? `/pokemon/${evolution.pokemon.id}/variants/${evolution.pokemon.form.id}`
+                            : `/pokemon/${evolution.pokemon.id}`}
                       className="font-medium text-zinc-100 transition hover:text-white"
                     >
                       {formatName(evolution.pokemon.name)}

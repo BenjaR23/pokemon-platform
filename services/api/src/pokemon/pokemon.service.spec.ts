@@ -1575,6 +1575,10 @@ describe('PokemonService', () => {
       },
       varieties: [
         {
+          externalId: 1,
+          name: 'bulbasaur',
+          isDefault: true,
+
           types: [
             {
               type: {
@@ -1606,6 +1610,21 @@ describe('PokemonService', () => {
             specialAttack: 65,
             specialDefense: 65,
             speed: 45,
+          },
+        },
+        {
+          externalId: 10001,
+          name: 'bulbasaur-test',
+          isDefault: false,
+          types: [],
+          pokemonVarietyAbilities: [],
+          pokemonVarietyStats: {
+            hp: 50,
+            attack: 50,
+            defense: 50,
+            specialAttack: 50,
+            specialDefense: 50,
+            speed: 50,
           },
         },
       ],
@@ -1760,11 +1779,11 @@ describe('PokemonService', () => {
           },
         },
         varieties: {
-          where: {
-            isDefault: true,
-          },
-          take: 1,
           select: {
+            externalId: true,
+            name: true,
+            isDefault: true,
+
             types: {
               orderBy: {
                 slot: 'asc',
@@ -1924,6 +1943,23 @@ describe('PokemonService', () => {
       generation: {
         id: 1,
         name: 'generation-i',
+      },
+      variants: [
+        {
+          id: 1,
+          name: 'bulbasaur',
+          isDefault: true,
+        },
+        {
+          id: 10001,
+          name: 'bulbasaur-test',
+          isDefault: false,
+        },
+      ],
+      selectedVariant: {
+        id: 1,
+        name: 'bulbasaur',
+        isDefault: true,
       },
       image:
         'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png',
@@ -2107,6 +2143,242 @@ describe('PokemonService', () => {
     });
   });
 
+  it('returns detail data for the selected Pokemon variant', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
+      externalId: 19,
+      name: 'rattata',
+
+      generation: {
+        externalId: 1,
+        name: 'generation-i',
+      },
+
+      varieties: [
+        {
+          externalId: 19,
+          name: 'rattata',
+          isDefault: true,
+          types: [
+            {
+              type: {
+                name: 'normal',
+              },
+            },
+          ],
+          pokemonVarietyAbilities: [],
+          pokemonVarietyStats: {
+            hp: 30,
+            attack: 56,
+            defense: 35,
+            specialAttack: 25,
+            specialDefense: 35,
+            speed: 72,
+          },
+        },
+        {
+          externalId: 10091,
+          name: 'rattata-alola',
+          isDefault: false,
+          types: [
+            {
+              type: {
+                name: 'dark',
+              },
+            },
+            {
+              type: {
+                name: 'normal',
+              },
+            },
+          ],
+          pokemonVarietyAbilities: [
+            {
+              ability: {
+                name: 'gluttony',
+              },
+            },
+          ],
+          pokemonVarietyStats: {
+            hp: 30,
+            attack: 56,
+            defense: 35,
+            specialAttack: 25,
+            specialDefense: 35,
+            speed: 72,
+          },
+        },
+      ],
+
+      evolutionChain: null,
+    });
+
+    const result = await service.findOne(19, 10091);
+
+    expect(result.selectedVariant).toEqual({
+      id: 10091,
+      name: 'rattata-alola',
+      isDefault: false,
+    });
+
+    expect(result.image).toBe(
+      'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/10091.png',
+    );
+
+    expect(result.types).toEqual(['dark', 'normal']);
+    expect(result.abilities).toEqual(['gluttony']);
+  });
+
+  it('throws when the selected variant does not belong to the Pokemon species', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
+      externalId: 19,
+      name: 'rattata',
+
+      generation: {
+        externalId: 1,
+        name: 'generation-i',
+      },
+
+      varieties: [
+        {
+          externalId: 19,
+          name: 'rattata',
+          isDefault: true,
+          types: [],
+          pokemonVarietyAbilities: [],
+          pokemonVarietyStats: null,
+        },
+      ],
+
+      evolutionChain: null,
+    });
+
+    await expect(service.findOne(19, 10091)).rejects.toThrow(
+      'Variant with id 10091 was not found for Pokemon 19',
+    );
+  });
+
+  it('returns next evolutions for the selected Pokemon variant', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
+      externalId: 19,
+      name: 'rattata',
+
+      generation: {
+        externalId: 1,
+        name: 'generation-i',
+      },
+
+      varieties: [
+        {
+          externalId: 19,
+          name: 'rattata',
+          isDefault: true,
+          types: [],
+          pokemonVarietyAbilities: [],
+          pokemonVarietyStats: null,
+        },
+        {
+          externalId: 10091,
+          name: 'rattata-alola',
+          isDefault: false,
+          types: [],
+          pokemonVarietyAbilities: [],
+          pokemonVarietyStats: null,
+        },
+      ],
+
+      evolutionChain: {
+        species: [
+          {
+            id: 'rattata-uuid',
+            externalId: 19,
+            name: 'rattata',
+          },
+          {
+            id: 'raticate-uuid',
+            externalId: 20,
+            name: 'raticate',
+          },
+        ],
+
+        evolution: [
+          {
+            id: 'rattata-normal-evolution',
+            fromSpeciesId: 'rattata-uuid',
+            toSpeciesId: 'raticate-uuid',
+
+            fromSpecies: {
+              externalId: 19,
+              name: 'rattata',
+            },
+
+            toSpecies: {
+              externalId: 20,
+              name: 'raticate',
+            },
+
+            trigger: {
+              name: 'level-up',
+            },
+
+            rules: [
+              createEvolutionRule({
+                minLevel: 20,
+              }),
+            ],
+          },
+
+          {
+            id: 'rattata-alola-evolution',
+            fromSpeciesId: 'rattata-uuid',
+            toSpeciesId: 'raticate-uuid',
+
+            fromSpecies: {
+              externalId: 19,
+              name: 'rattata',
+            },
+
+            toSpecies: {
+              externalId: 20,
+              name: 'raticate',
+            },
+
+            trigger: {
+              name: 'level-up',
+            },
+
+            rules: [
+              createEvolutionRule({
+                minLevel: 20,
+                timeOfDay: 'night',
+
+                baseForm: {
+                  externalId: 10091,
+                  name: 'rattata-alola',
+                },
+
+                evolvedForm: {
+                  externalId: 10092,
+                  name: 'raticate-alola',
+                },
+              }),
+            ],
+          },
+        ],
+      },
+    });
+
+    const defaultResult = await service.findOne(19);
+    const alolaResult = await service.findOne(19, 10091);
+
+    expect(defaultResult.nextEvolutions).toHaveLength(1);
+    expect(defaultResult.nextEvolutions[0].from.nodeId).toBe('19:default');
+    expect(defaultResult.nextEvolutions[0].pokemon.nodeId).toBe('20:default');
+
+    expect(alolaResult.nextEvolutions).toHaveLength(1);
+    expect(alolaResult.nextEvolutions[0].from.nodeId).toBe('19:10091');
+    expect(alolaResult.nextEvolutions[0].pokemon.nodeId).toBe('20:10092');
+  });
+
   it('returns branching evolution connections with their evolution rules', async () => {
     prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
       externalId: 133,
@@ -2115,7 +2387,16 @@ describe('PokemonService', () => {
         externalId: 1,
         name: 'generation-i',
       },
-      varieties: [],
+      varieties: [
+        {
+          externalId: 133,
+          name: 'eevee',
+          isDefault: true,
+          types: [],
+          pokemonVarietyAbilities: [],
+          pokemonVarietyStats: null,
+        },
+      ],
       evolutionChain: {
         species: [
           {
@@ -2276,6 +2557,9 @@ describe('PokemonService', () => {
       externalId: 1,
       varieties: [
         {
+          externalId: 1,
+          name: 'bulbasaur',
+          isDefault: true,
           pokemonAcquisitions: [
             {
               acquisitionType: {
@@ -2571,5 +2855,76 @@ describe('PokemonService', () => {
     expect(prismaMock.pokemonSpecies.count).toHaveBeenCalledWith({
       where,
     });
+  });
+
+  it('should return encounters for the selected Pokemon variant', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
+      externalId: 19,
+      varieties: [
+        {
+          externalId: 19,
+          name: 'rattata',
+          isDefault: true,
+          pokemonAcquisitions: [],
+        },
+        {
+          externalId: 10091,
+          name: 'rattata-alola',
+          isDefault: false,
+          pokemonAcquisitions: [
+            {
+              acquisitionType: {
+                code: 'wild-encounter',
+                name: 'Wild encounter',
+              },
+              game: {
+                externalId: 30,
+                name: 'sun',
+                versionGroup: {
+                  name: 'sun-moon',
+                },
+              },
+              encounters: [],
+            },
+          ],
+        },
+      ],
+    });
+
+    const result = await service.findEncounters(19, 10091);
+
+    expect(result).toEqual({
+      pokemonId: 19,
+      games: [
+        {
+          id: 30,
+          name: 'sun',
+          versionGroup: 'sun-moon',
+          acquisitionType: {
+            code: 'wild-encounter',
+            name: 'Wild encounter',
+          },
+          encounters: [],
+        },
+      ],
+    });
+  });
+
+  it('should throw when the selected Pokemon variant does not belong to the species', async () => {
+    prismaMock.pokemonSpecies.findUnique.mockResolvedValue({
+      externalId: 25,
+      varieties: [
+        {
+          externalId: 25,
+          name: 'pikachu',
+          isDefault: true,
+          pokemonAcquisitions: [],
+        },
+      ],
+    });
+
+    await expect(service.findEncounters(25, 10091)).rejects.toThrow(
+      'Variant with id 10091 was not found for Pokemon 25',
+    );
   });
 });

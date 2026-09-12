@@ -752,7 +752,7 @@ export class PokemonService {
     };
   }
 
-  async findOne(externalId: number) {
+  async findOne(externalId: number, variantExternalId?: number) {
     const pokemon = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId,
@@ -765,11 +765,11 @@ export class PokemonService {
           },
         },
         varieties: {
-          where: {
-            isDefault: true,
-          },
-          take: 1,
           select: {
+            externalId: true,
+            name: true,
+            isDefault: true,
+
             types: {
               orderBy: {
                 slot: 'asc',
@@ -850,7 +850,28 @@ export class PokemonService {
       );
     }
 
-    const defaultVariety = pokemon.varieties[0];
+    const defaultVariety = pokemon.varieties.find(
+      (variety) => variety.isDefault,
+    );
+
+    const selectedVariant =
+      variantExternalId !== undefined
+        ? pokemon.varieties.find(
+            (variety) => variety.externalId === variantExternalId,
+          )
+        : defaultVariety;
+
+    if (!selectedVariant) {
+      if (variantExternalId !== undefined) {
+        throw new NotFoundException(
+          `Variant with id ${variantExternalId} was not found for Pokemon ${externalId}`,
+        );
+      }
+
+      throw new NotFoundException(
+        `Default variant for Pokemon ${externalId} was not found`,
+      );
+    }
 
     type EvolutionNode = {
       nodeId: string;
@@ -991,16 +1012,23 @@ export class PokemonService {
         }
       : null;
 
+    const selectedEvolutionNodeId = selectedVariant.isDefault
+      ? `${pokemon.externalId}:default`
+      : `${pokemon.externalId}:${selectedVariant.externalId}`;
+
     const nextEvolutions = groupedConnections
-      .filter(
-        (connection) =>
-          evolutionNodes.get(connection.from)?.id === pokemon.externalId,
-      )
+      .filter((connection) => connection.from === selectedEvolutionNodeId)
       .map((connection) => ({
         from: evolutionNodes.get(connection.from)!,
         pokemon: connection.pokemon,
         methods: connection.methods,
       }));
+
+    const variants = pokemon.varieties.map((variety) => ({
+      id: variety.externalId,
+      name: variety.name,
+      isDefault: variety.isDefault,
+    }));
 
     return {
       id: pokemon.externalId,
@@ -1011,21 +1039,30 @@ export class PokemonService {
             name: pokemon.generation.name,
           }
         : null,
-      image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemon.externalId}.png`,
-      types:
-        defaultVariety?.types.map((pokemonType) => pokemonType.type.name) ?? [],
-      abilities:
-        defaultVariety?.pokemonVarietyAbilities.map(
-          (pokemonAbility) => pokemonAbility.ability.name,
-        ) ?? [],
-      stats: defaultVariety?.pokemonVarietyStats ?? null,
+
+      variants,
+
+      selectedVariant: {
+        id: selectedVariant.externalId,
+        name: selectedVariant.name,
+        isDefault: selectedVariant.isDefault,
+      },
+
+      image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${selectedVariant.externalId}.png`,
+      types: selectedVariant.types.map((pokemonType) => pokemonType.type.name),
+
+      abilities: selectedVariant.pokemonVarietyAbilities.map(
+        (pokemonAbility) => pokemonAbility.ability.name,
+      ),
+
+      stats: selectedVariant.pokemonVarietyStats,
 
       evolutionChain,
       nextEvolutions,
     };
   }
 
-  async findEncounters(externalId: number) {
+  async findEncounters(externalId: number, variantExternalId?: number) {
     const pokemon = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId,
@@ -1033,11 +1070,10 @@ export class PokemonService {
       select: {
         externalId: true,
         varieties: {
-          where: {
-            isDefault: true,
-          },
-          take: 1,
           select: {
+            externalId: true,
+            name: true,
+            isDefault: true,
             pokemonAcquisitions: {
               orderBy: {
                 game: {
@@ -1122,9 +1158,24 @@ export class PokemonService {
       );
     }
 
-    const defaultVariety = pokemon.varieties[0];
+    const defaultVariety = pokemon.varieties.find(
+      (variety) => variety.isDefault,
+    );
 
-    if (!defaultVariety) {
+    const selectedVariant =
+      variantExternalId !== undefined
+        ? pokemon.varieties.find(
+            (variety) => variety.externalId === variantExternalId,
+          )
+        : defaultVariety;
+
+    if (!selectedVariant) {
+      if (variantExternalId !== undefined) {
+        throw new NotFoundException(
+          `Variant with id ${variantExternalId} was not found for Pokemon ${externalId}`,
+        );
+      }
+
       return {
         pokemonId: pokemon.externalId,
         games: [],
@@ -1133,7 +1184,7 @@ export class PokemonService {
 
     return {
       pokemonId: pokemon.externalId,
-      games: defaultVariety.pokemonAcquisitions.map((acquisition) => ({
+      games: selectedVariant.pokemonAcquisitions.map((acquisition) => ({
         id: acquisition.game.externalId,
         name: acquisition.game.name,
         versionGroup: acquisition.game.versionGroup.name,

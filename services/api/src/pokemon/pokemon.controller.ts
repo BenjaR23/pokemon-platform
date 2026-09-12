@@ -35,6 +35,14 @@ export class PokemonController {
     return this.pokemonService.findOne(id);
   }
 
+  @Get(':id/variants/:variantId')
+  findOneVariant(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('variantId', ParseIntPipe) variantId: number,
+  ) {
+    return this.pokemonService.findOne(id, variantId);
+  }
+
   @Get()
   findAll(@Query() query: GetPokemonQueryDto) {
     return this.pokemonService.findAll(
@@ -49,6 +57,14 @@ export class PokemonController {
   @Get(':id/encounters')
   findEncounters(@Param('id', ParseIntPipe) id: number) {
     return this.pokemonService.findEncounters(id);
+  }
+
+  @Get(':id/variants/:variantId/encounters')
+  findVariantEncounters(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('variantId', ParseIntPipe) variantId: number,
+  ) {
+    return this.pokemonService.findEncounters(id, variantId);
   }
 
   /**

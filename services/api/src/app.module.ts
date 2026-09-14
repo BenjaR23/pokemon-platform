@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { PokemonModule } from './pokemon/pokemon.module.js';
 
+import { AuthModule } from './auth/auth.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -13,6 +15,7 @@ import { PokemonModule } from './pokemon/pokemon.module.js';
     }),
     PrismaModule,
     PokemonModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

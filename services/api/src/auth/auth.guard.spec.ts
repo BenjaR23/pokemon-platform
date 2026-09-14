@@ -1,11 +1,19 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { Request } from 'express';
 
 jest.mock('@nestjs/jwt', () => ({
   JwtService: class JwtService {},
 }));
 
 import { AuthGuard } from './auth.guard';
+
+interface AuthenticatedRequest {
+  headers: {
+    cookie?: string;
+  };
+  user?: {
+    id: string;
+  };
+}
 
 describe('AuthGuard', () => {
   const jwtService = {
@@ -16,10 +24,17 @@ describe('AuthGuard', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
     guard = new AuthGuard(jwtService as never);
   });
 
-  function createExecutionContext(request: Partial<Request>): ExecutionContext {
+  function createExecutionContext(cookie?: string): ExecutionContext {
+    const request = {
+      headers: {
+        cookie,
+      },
+    } as AuthenticatedRequest;
+
     return {
       switchToHttp: () => ({
         getRequest: () => request,
@@ -27,10 +42,28 @@ describe('AuthGuard', () => {
     } as ExecutionContext;
   }
 
-  it('throws when the access token cookie is missing', async () => {
-    const context = createExecutionContext({
-      headers: {},
+  it('allows requests with a valid access token', async () => {
+    jwtService.verifyAsync.mockResolvedValue({
+      sub: 'user-id',
     });
+
+    const context = createExecutionContext('access_token=valid-token');
+
+    const result = await guard.canActivate(context);
+
+    expect(jwtService.verifyAsync).toHaveBeenCalledWith('valid-token');
+
+    expect(result).toBe(true);
+
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
+    expect(request.user).toEqual({
+      id: 'user-id',
+    });
+  });
+
+  it('throws when the access token cookie is missing', async () => {
+    const context = createExecutionContext();
 
     await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
       UnauthorizedException,
@@ -40,44 +73,26 @@ describe('AuthGuard', () => {
   });
 
   it('throws when the access token is invalid', async () => {
-    const request = {
-      headers: {
-        cookie: 'access_token=invalid-token',
-      },
-    };
-
-    const context = createExecutionContext(request);
-
     jwtService.verifyAsync.mockRejectedValue(new Error('Invalid token'));
+
+    const context = createExecutionContext('access_token=invalid-token');
 
     await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
-
-    expect(jwtService.verifyAsync).toHaveBeenCalledWith('invalid-token');
   });
 
-  it('adds the authenticated user to the request', async () => {
-    const request = {
-      headers: {
-        cookie: 'access_token=valid-token',
-      },
-    };
-
-    const context = createExecutionContext(request);
-
+  it('extracts the access token among multiple cookies', async () => {
     jwtService.verifyAsync.mockResolvedValue({
       sub: 'user-id',
     });
 
-    const result = await guard.canActivate(context);
+    const context = createExecutionContext(
+      'theme=dark; access_token=valid-token; language=es',
+    );
 
-    expect(result).toBe(true);
+    await guard.canActivate(context);
 
     expect(jwtService.verifyAsync).toHaveBeenCalledWith('valid-token');
-
-    expect(request).toHaveProperty('user', {
-      id: 'user-id',
-    });
   });
 });

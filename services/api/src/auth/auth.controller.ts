@@ -38,4 +38,17 @@ export class AuthController {
   getCurrentUser(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.findCurrentUser(user.id);
   }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) response: Response) {
+    response.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
+    return {
+      message: 'Logged out successfuly',
+    };
+  }
 }

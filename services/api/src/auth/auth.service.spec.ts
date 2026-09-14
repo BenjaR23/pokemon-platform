@@ -1,26 +1,46 @@
 import { ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+
+jest.mock('@nestjs/jwt', () => ({
+  JwtService: class JwtService {},
+}));
+
+jest.mock('bcrypt', () => ({
+  hash: jest.fn(),
+  compare: jest.fn(),
+}));
+
 import { AuthService } from './auth.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(),
+  compare: jest.fn(),
 }));
 
 describe('AuthService', () => {
   const bcryptHashMock = bcrypt.hash as jest.MockedFunction<typeof bcrypt.hash>;
+  const bcryptCompareMock = bcrypt.compare as jest.MockedFunction<
+    typeof bcrypt.compare
+  >;
 
   const prisma = {
     user: {
       findFirst: jest.fn(),
       create: jest.fn(),
+      findUnique: jest.fn(),
     },
+  };
+
+  const jwtService = {
+    signAsync: jest.fn(),
   };
 
   let service: AuthService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AuthService(prisma as never);
+
+    service = new AuthService(prisma as never, jwtService as never);
   });
 
   it('registers a new user with a hashed password', async () => {
@@ -122,5 +142,86 @@ describe('AuthService', () => {
     });
 
     expect(result).not.toHaveProperty('passwordHash');
+  });
+
+  it('logs in a user with valid credentials', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-id',
+      email: 'benja@example.com',
+      username: 'benja',
+      passwordHash: 'stored-password-hash',
+    });
+
+    bcryptCompareMock.mockResolvedValue(true as never);
+    jwtService.signAsync.mockResolvedValue('access-token');
+
+    const result = await service.login({
+      email: 'benja@example.com',
+      password: 'testpassword123',
+    });
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: {
+        email: 'benja@example.com',
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        passwordHash: true,
+      },
+    });
+
+    expect(bcryptCompareMock).toHaveBeenCalledWith(
+      'testpassword123',
+      'stored-password-hash',
+    );
+
+    expect(jwtService.signAsync).toHaveBeenCalledWith({
+      sub: 'user-id',
+    });
+
+    expect(result).toEqual({
+      accessToken: 'access-token',
+      user: {
+        id: 'user-id',
+        email: 'benja@example.com',
+        username: 'benja',
+      },
+    });
+  });
+
+  it('throws when the password is incorrect', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-id',
+      email: 'benja@example.com',
+      username: 'benja',
+      passwordHash: 'stored-password-hash',
+    });
+
+    bcryptCompareMock.mockResolvedValue(false as never);
+
+    await expect(
+      service.login({
+        email: 'benja@example.com',
+        password: 'wrongpassword',
+      }),
+    ).rejects.toThrow('Invalid email or password');
+
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('throws when the email does not exist', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.login({
+        email: 'missing@example.com',
+        password: 'testpassword123',
+      }),
+    ).rejects.toThrow('Invalid email or password');
+
+    expect(bcryptCompareMock).not.toHaveBeenCalled();
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
   });
 });

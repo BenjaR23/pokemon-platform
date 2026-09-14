@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 jest.mock('@nestjs/jwt', () => ({
@@ -223,5 +223,45 @@ describe('AuthService', () => {
 
     expect(bcryptCompareMock).not.toHaveBeenCalled();
     expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('returns the current authenticated user', async () => {
+    const createdAt = new Date('2026-09-14T12:00:00.000Z');
+
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'user-id',
+      email: 'benja@example.com',
+      username: 'benja',
+      createdAt,
+    });
+
+    const result = await service.findCurrentUser('user-id');
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: {
+        id: 'user-id',
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        createdAt: true,
+      },
+    });
+
+    expect(result).toEqual({
+      id: 'user-id',
+      email: 'benja@example.com',
+      username: 'benja',
+      createdAt,
+    });
+  });
+
+  it('throws when the authenticated user no longer exists', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+
+    await expect(
+      service.findCurrentUser('missing-user-id'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });

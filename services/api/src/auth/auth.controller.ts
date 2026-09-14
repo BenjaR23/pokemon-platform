@@ -1,8 +1,11 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import { Body, Controller, Post, Res, Get, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { AuthGuard } from './auth.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
+import type { AuthenticatedUser } from './types/authenticated-user.type';
 
 @Controller('auth')
 export class AuthController {
@@ -28,5 +31,11 @@ export class AuthController {
     });
 
     return user;
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard)
+  getCurrentUser(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.findCurrentUser(user.id);
   }
 }

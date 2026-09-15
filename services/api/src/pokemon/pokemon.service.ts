@@ -80,12 +80,14 @@ const evolutionRuleInclude = {
     select: {
       externalId: true,
       name: true,
+      isDefault: true,
     },
   },
   evolvedForm: {
     select: {
       externalId: true,
       name: true,
+      isDefault: true,
     },
   },
 } satisfies Prisma.EvolutionRuleInclude;
@@ -896,6 +898,20 @@ export class PokemonService {
       methods: EvolutionMethod[];
     };
 
+    function getEvolutionNodeId(
+      speciesExternalId: number,
+      form: {
+        externalId: number;
+        isDefault: boolean;
+      } | null,
+    ) {
+      if (!form || form.isDefault) {
+        return `${speciesExternalId}:default`;
+      }
+
+      return `${speciesExternalId}:${form.externalId}`;
+    }
+
     const evolutionNodes = new Map<string, EvolutionNode>();
 
     if (pokemon.evolutionChain) {
@@ -920,15 +936,21 @@ export class PokemonService {
                 const fromSpeciesId = evolution.fromSpecies.externalId;
                 const toSpeciesId = evolution.toSpecies.externalId;
 
-                const fromNodeId = rule.baseForm
-                  ? `${fromSpeciesId}:${rule.baseForm.externalId}`
-                  : `${fromSpeciesId}:default`;
+                const fromNodeId = getEvolutionNodeId(
+                  fromSpeciesId,
+                  rule.baseForm,
+                );
 
-                const toNodeId = rule.evolvedForm
-                  ? `${toSpeciesId}:${rule.evolvedForm.externalId}`
-                  : `${toSpeciesId}:default`;
+                const toNodeId = getEvolutionNodeId(
+                  toSpeciesId,
+                  rule.evolvedForm,
+                );
 
-                if (rule.baseForm && !evolutionNodes.has(fromNodeId)) {
+                if (
+                  rule.baseForm &&
+                  !rule.baseForm.isDefault &&
+                  !evolutionNodes.has(fromNodeId)
+                ) {
                   evolutionNodes.set(fromNodeId, {
                     nodeId: fromNodeId,
                     id: fromSpeciesId,
@@ -941,7 +963,11 @@ export class PokemonService {
                   });
                 }
 
-                if (rule.evolvedForm && !evolutionNodes.has(toNodeId)) {
+                if (
+                  rule.evolvedForm &&
+                  !rule.evolvedForm.isDefault &&
+                  !evolutionNodes.has(toNodeId)
+                ) {
                   evolutionNodes.set(toNodeId, {
                     nodeId: toNodeId,
                     id: toSpeciesId,

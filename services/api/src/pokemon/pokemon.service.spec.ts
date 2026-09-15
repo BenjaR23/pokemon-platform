@@ -1920,12 +1920,14 @@ describe('PokemonService', () => {
                       select: {
                         externalId: true,
                         name: true,
+                        isDefault: true,
                       },
                     },
                     evolvedForm: {
                       select: {
                         externalId: true,
                         name: true,
+                        isDefault: true,
                       },
                     },
                   },

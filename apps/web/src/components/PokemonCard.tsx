@@ -1,6 +1,8 @@
 import type { PokemonListItem } from "../types/pokemon";
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "../auth/useAuth";
+import { useCollection } from "../collection/useCollection";
 
 interface PokemonCardProps {
     pokemon: PokemonListItem;
@@ -8,6 +10,11 @@ interface PokemonCardProps {
 
 export function PokemonCard({ pokemon }: PokemonCardProps) {
     const [imageLoaded, setImageLoaded] = useState(false);
+
+    const { user } = useAuth();
+    const { isCollected } = useCollection();
+
+    const collected = isCollected(pokemon.id);
 
     return (
         <Link
@@ -28,6 +35,12 @@ export function PokemonCard({ pokemon }: PokemonCardProps) {
                     imageLoaded ? 'opacity-100' : 'opacity-0'
                     }`}
                 />
+
+                {user && collected && (
+                    <span className="absolute right-3 top-3 rounded-full border border-emerald-800 bg-emerald-950/80 px-2.5 py-1 text-xs font-medium text-emerald-300">
+                        Captured
+                    </span>
+                )}
             </div>
 
             <div className="flex flex-1 flex-col p-5">

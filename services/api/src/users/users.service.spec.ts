@@ -24,8 +24,6 @@ describe('UsersService', () => {
   it('adds a Pokemon species to the user collection', async () => {
     prisma.pokemonSpecies.findUnique.mockResolvedValue({
       id: 'species-id',
-      externalId: 25,
-      name: 'pikachu',
     });
 
     prisma.userCollection.upsert.mockResolvedValue({
@@ -34,6 +32,16 @@ describe('UsersService', () => {
       species: {
         externalId: 25,
         name: 'pikachu',
+        generation: {
+          externalId: 1,
+          name: 'generation-i',
+        },
+        varieties: [
+          {
+            externalId: 25,
+            name: 'pikachu',
+          },
+        ],
       },
     });
 
@@ -45,8 +53,6 @@ describe('UsersService', () => {
       },
       select: {
         id: true,
-        externalId: true,
-        name: true,
       },
     });
 
@@ -69,12 +75,45 @@ describe('UsersService', () => {
           select: {
             externalId: true,
             name: true,
+            generation: {
+              select: {
+                externalId: true,
+                name: true,
+              },
+            },
+            varieties: {
+              where: {
+                isDefault: true,
+              },
+              take: 1,
+              select: {
+                externalId: true,
+                name: true,
+              },
+            },
           },
         },
       },
     });
 
-    expect(result.species.externalId).toBe(25);
+    expect(result).toEqual({
+      id: 'collection-id',
+      createdAt: new Date('2026-09-15T12:00:00.000Z'),
+      species: {
+        externalId: 25,
+        name: 'pikachu',
+        generation: {
+          externalId: 1,
+          name: 'generation-i',
+        },
+        varieties: [
+          {
+            externalId: 25,
+            name: 'pikachu',
+          },
+        ],
+      },
+    });
   });
 
   it('throws when adding a Pokemon that does not exist', async () => {

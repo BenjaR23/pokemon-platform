@@ -12,8 +12,6 @@ export class UsersService {
       },
       select: {
         id: true,
-        externalId: true,
-        name: true,
       },
     });
 
@@ -23,7 +21,7 @@ export class UsersService {
       );
     }
 
-    const collectionEntry = await this.prisma.userCollection.upsert({
+    return this.prisma.userCollection.upsert({
       where: {
         userId_speciesId: {
           userId,
@@ -42,12 +40,26 @@ export class UsersService {
           select: {
             externalId: true,
             name: true,
+            generation: {
+              select: {
+                externalId: true,
+                name: true,
+              },
+            },
+            varieties: {
+              where: {
+                isDefault: true,
+              },
+              take: 1,
+              select: {
+                externalId: true,
+                name: true,
+              },
+            },
           },
         },
       },
     });
-
-    return collectionEntry;
   }
 
   async getCollection(userId: string) {

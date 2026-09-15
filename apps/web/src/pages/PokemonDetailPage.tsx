@@ -1,15 +1,50 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { PokemonDetail, PokemonEncountersResponse } from '../types/pokemon';
-import { PokemonEvolution } from '../components/PokemonEvolution';
+import { useAuth } from '../auth/useAuth';
+import { useCollection } from '../collection/useCollection';
 import { PokemonEncounters } from '../components/PokemonEncounters';
+import { PokemonEvolution } from '../components/PokemonEvolution';
+import type {
+  PokemonDetail,
+  PokemonEncountersResponse,
+} from '../types/pokemon';
 
 export function PokemonDetailPage() {
+  const [updatingCollection, setUpdatingCollection] =
+  useState(false);
   const { id, variantId } = useParams();
-  const [pokemon, setPokemon] = useState<PokemonDetail | null>(null);
-  const [encounterGames, setEncounterGames] = useState<PokemonEncountersResponse['games']>([]);
+
+  const { user } = useAuth();
+
+  const pokemonId = Number(id ?? 0);
+
+  const {
+    isCollected,
+    loading: collectionLoading,
+    toggleCollection
+  } = useCollection();
+
+  const collected = isCollected(pokemonId);
+
+  const [pokemon, setPokemon] =
+    useState<PokemonDetail | null>(null);
+
+  const [encounterGames, setEncounterGames] = useState<
+    PokemonEncountersResponse['games']
+  >([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleCollectionToggle() {
+    setUpdatingCollection(true);
+
+    try {
+      await toggleCollection(pokemonId);
+    } finally {
+      setUpdatingCollection(false);
+    }
+  }
 
   useEffect(() => {
     window.scrollTo({
@@ -33,7 +68,10 @@ export function PokemonDetailPage() {
           ? `http://localhost:3000/pokemon/${id}/variants/${variantId}/encounters`
           : `http://localhost:3000/pokemon/${id}/encounters`;
 
-        const [pokemonResponse, encountersResponse] = await Promise.all([
+        const [
+          pokemonResponse,
+          encountersResponse,
+        ] = await Promise.all([
           fetch(pokemonUrl),
           fetch(encountersUrl),
         ]);
@@ -43,12 +81,16 @@ export function PokemonDetailPage() {
         }
 
         if (!encountersResponse.ok) {
-          throw new Error('Failed to fecth Pokemon encounters');
+          throw new Error(
+            'Failed to fetch Pokemon encounters',
+          );
         }
 
-        const pokemonData: PokemonDetail = await pokemonResponse.json();
+        const pokemonData: PokemonDetail =
+          await pokemonResponse.json();
 
-        const encountersData: PokemonEncountersResponse = await encountersResponse.json();
+        const encountersData: PokemonEncountersResponse =
+          await encountersResponse.json();
 
         setPokemon(pokemonData);
         setEncounterGames(encountersData.games);
@@ -59,7 +101,7 @@ export function PokemonDetailPage() {
       }
     }
 
-    fetchPokemon();
+    void fetchPokemon();
   }, [id, variantId]);
 
   if (isLoading) {
@@ -89,7 +131,9 @@ export function PokemonDetailPage() {
             {pokemon.variants.length > 1 && (
               <div className="mb-6 flex flex-wrap justify-center gap-2">
                 {pokemon.variants.map((variant) => {
-                  const isSelected = variant.id === pokemon.selectedVariant.id;
+                  const isSelected =
+                    variant.id ===
+                    pokemon.selectedVariant.id;
 
                   const path = variant.isDefault
                     ? `/pokemon/${pokemon.id}`
@@ -115,20 +159,52 @@ export function PokemonDetailPage() {
             <div className="flex items-center justify-center">
               <img
                 src={pokemon.image}
-                alt={formatName(pokemon.selectedVariant.name)}
+                alt={formatName(
+                  pokemon.selectedVariant.name,
+                )}
                 className="max-h-[420px] w-full object-contain"
               />
             </div>
           </div>
 
           <div className="flex flex-col">
-            <span className="text-sm text-zinc-500">
-              #{pokemon.id.toString().padStart(4, '0')}
-            </span>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="text-sm text-zinc-500">
+                  #
+                  {pokemon.id
+                    .toString()
+                    .padStart(4, '0')}
+                </span>
 
-            <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-100">
-              {formatName(pokemon.selectedVariant.name)}
-            </h1>
+                <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-100">
+                  {formatName(
+                    pokemon.selectedVariant.name,
+                  )}
+                </h1>
+              </div>
+
+              {user && (
+                <button
+                  type="button"
+                  onClick={() => void handleCollectionToggle()}
+                  disabled={
+                    collectionLoading || updatingCollection
+                  }
+                  className={
+                    collected
+                      ? 'shrink-0 rounded-lg border border-emerald-800 bg-emerald-950/40 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-950/70 disabled:cursor-not-allowed disabled:opacity-50'
+                      : 'shrink-0 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50'
+                  }
+                >
+                  {updatingCollection
+                    ? 'Updating...'
+                    : collected
+                      ? 'Captured'
+                      : 'Add to collection'}
+                </button>
+              )}
+            </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {pokemon.types.map((type) => (
@@ -171,23 +247,45 @@ export function PokemonDetailPage() {
                 </h2>
 
                 <div className="mt-4 space-y-3 text-sm">
-                  <Stat label="HP" value={pokemon.stats.hp} />
-                  <Stat label="Attack" value={pokemon.stats.attack} />
-                  <Stat label="Defense" value={pokemon.stats.defense} />
+                  <Stat
+                    label="HP"
+                    value={pokemon.stats.hp}
+                  />
+
+                  <Stat
+                    label="Attack"
+                    value={pokemon.stats.attack}
+                  />
+
+                  <Stat
+                    label="Defense"
+                    value={pokemon.stats.defense}
+                  />
+
                   <Stat
                     label="Sp. Attack"
-                    value={pokemon.stats.specialAttack}
+                    value={
+                      pokemon.stats.specialAttack
+                    }
                   />
+
                   <Stat
                     label="Sp. Defense"
-                    value={pokemon.stats.specialDefense}
+                    value={
+                      pokemon.stats.specialDefense
+                    }
                   />
-                  <Stat label="Speed" value={pokemon.stats.speed} />
+
+                  <Stat
+                    label="Speed"
+                    value={pokemon.stats.speed}
+                  />
                 </div>
               </div>
             )}
           </div>
         </section>
+
         <PokemonEvolution
           currentPokemonNodeId={
             pokemon.selectedVariant.isDefault
@@ -212,8 +310,13 @@ interface StatProps {
 function Stat({ label, value }: StatProps) {
   return (
     <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
-      <span className="text-zinc-400">{label}</span>
-      <span className="font-medium text-zinc-200">{value}</span>
+      <span className="text-zinc-400">
+        {label}
+      </span>
+
+      <span className="font-medium text-zinc-200">
+        {value}
+      </span>
     </div>
   );
 }
@@ -254,7 +357,9 @@ function PokemonDetailSkeleton() {
               <div className="h-6 w-28 animate-pulse rounded bg-zinc-900" />
 
               <div className="mt-4 space-y-4">
-                {Array.from({ length: 6 }).map((_, index) => (
+                {Array.from({
+                  length: 6,
+                }).map((_, index) => (
                   <div
                     key={index}
                     className="flex items-center justify-between border-b border-zinc-900 pb-2"
@@ -275,6 +380,10 @@ function PokemonDetailSkeleton() {
 function formatName(name: string) {
   return name
     .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map(
+      (part) =>
+        part.charAt(0).toUpperCase() +
+        part.slice(1),
+    )
     .join(' ');
 }

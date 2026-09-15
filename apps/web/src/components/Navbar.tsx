@@ -7,8 +7,7 @@ export function Navbar() {
   const { user, loading, logout } = useAuth();
 
   const [loggingOut, setLoggingOut] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] =
-    useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -41,9 +40,18 @@ export function Navbar() {
               Pokédex
             </Link>
 
-            <span className="cursor-default text-zinc-600">
-              Collection
-            </span>
+            { user ? (
+              <Link
+                to="/collection"
+                className='text-zinc-300 transition hover:text-white'
+              >
+                Collection
+              </Link>
+            ) : (
+              <span className='cursor-default text-zinc-600'>
+                Collection
+              </span>
+            )}
 
             <span className="cursor-default text-zinc-600">
               Favorites

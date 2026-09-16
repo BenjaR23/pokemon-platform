@@ -21,9 +21,15 @@ export function PokemonCard({
   const [updatingFavorite, setUpdatingFavorite] =
     useState(false);
 
+  const [updatingCollection, setUpdatingCollection] =
+    useState(false);
+
   const { user } = useAuth();
 
-  const { isCollected } = useCollection();
+  const {
+    isCollected,
+    toggleCollection,
+  } = useCollection();
 
   const {
     isFavorite,
@@ -48,6 +54,21 @@ export function PokemonCard({
     }
   }
 
+  async function handleCollectionClick(
+    event: MouseEvent<HTMLButtonElement>,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setUpdatingCollection(true);
+
+    try {
+      await toggleCollection(pokemon.id);
+    } finally {
+      setUpdatingCollection(false);
+    }
+  }
+
   return (
     <Link
       to={`/pokemon/${pokemon.id}`}
@@ -69,39 +90,59 @@ export function PokemonCard({
               : 'opacity-0'
           }`}
         />
-
-        {user && collected && (
-          <span className="absolute left-3 top-3 rounded-full border border-emerald-800 bg-emerald-950/80 px-2.5 py-1 text-xs font-medium text-emerald-300">
-            Captured
-          </span>
-        )}
       </div>
 
       <div className="relative flex flex-1 flex-col p-5 pr-14">
         {user && (
-          <button
-            type="button"
-            onClick={(event) =>
-              void handleFavoriteClick(event)
-            }
-            disabled={updatingFavorite}
-            aria-label={
-              favorite
-                ? `Remove ${pokemon.name} from favorites`
-                : `Add ${pokemon.name} to favorites`
-            }
-            className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-black/70 text-xl transition hover:border-amber-500 hover:bg-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <span
+          <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(event) =>
+                void handleCollectionClick(event)
+              }
+              disabled={updatingCollection}
+              aria-label={
+                collected
+                  ? `Remove ${pokemon.name} from collection`
+                  : `Add ${pokemon.name} to collection`
+              }
               className={
-                favorite
-                  ? 'text-amber-400'
-                  : 'text-zinc-500'
+                collected
+                  ? 'flex h-9 items-center justify-center rounded-full border border-emerald-800 bg-emerald-950/80 px-3 text-xs font-medium text-emerald-300 transition hover:bg-emerald-950 disabled:cursor-not-allowed disabled:opacity-50'
+                  : 'flex pb-1 h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-black/70 text-xl text-zinc-400 transition hover:border-emerald-700 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-50'
               }
             >
-              {favorite ? '★' : '☆'}
-            </span>
-          </button>
+              {updatingCollection
+                ? '…'
+                : collected
+                  ? 'Captured'
+                  : '+'}
+            </button>
+
+            <button
+              type="button"
+              onClick={(event) =>
+                void handleFavoriteClick(event)
+              }
+              disabled={updatingFavorite}
+              aria-label={
+                favorite
+                  ? `Remove ${pokemon.name} from favorites`
+                  : `Add ${pokemon.name} to favorites`
+              }
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-black/70 text-xl transition hover:border-amber-500 hover:bg-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span
+                className={
+                  favorite
+                    ? 'text-amber-400 pb-0.5'
+                    : 'text-zinc-500 pb-0.5'
+                }
+              >
+                {favorite ? '★' : '☆'}
+              </span>
+            </button>
+          </div>
         )}
 
         <div>

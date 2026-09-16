@@ -6,6 +6,8 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async addToCollection(userId: string, pokemonExternalId: number) {
+    const profileId = await this.getMainProfileId(userId);
+
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId: pokemonExternalId,
@@ -23,14 +25,14 @@ export class UsersService {
 
     return this.prisma.userCollection.upsert({
       where: {
-        userId_speciesId: {
-          userId,
+        profileId_speciesId: {
+          profileId,
           speciesId: species.id,
         },
       },
       update: {},
       create: {
-        userId,
+        profileId,
         speciesId: species.id,
       },
       select: {
@@ -63,9 +65,11 @@ export class UsersService {
   }
 
   async getCollection(userId: string) {
+    const profileId = await this.getMainProfileId(userId);
+
     const collection = await this.prisma.userCollection.findMany({
       where: {
-        userId,
+        profileId,
       },
       orderBy: {
         createdAt: 'desc',
@@ -102,6 +106,8 @@ export class UsersService {
   }
 
   async removeFromCollection(userId: string, pokemonExternalId: number) {
+    const profileId = await this.getMainProfileId(userId);
+
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId: pokemonExternalId,
@@ -119,7 +125,7 @@ export class UsersService {
 
     await this.prisma.userCollection.deleteMany({
       where: {
-        userId,
+        profileId,
         speciesId: species.id,
       },
     });
@@ -127,5 +133,25 @@ export class UsersService {
     return {
       removed: true,
     };
+  }
+
+  private async getMainProfileId(userId: string) {
+    const profile = await this.prisma.collectionProfile.findUnique({
+      where: {
+        userId_name: {
+          userId,
+          name: 'Main',
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Collection profile not found');
+    }
+
+    return profile.id;
   }
 }

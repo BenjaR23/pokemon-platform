@@ -6,6 +6,8 @@ export class FavoritesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async addFavorite(userId: string, pokemonExternalId: number) {
+    const profileId = await this.getMainProfileId(userId);
+
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId: pokemonExternalId,
@@ -23,14 +25,14 @@ export class FavoritesService {
 
     return this.prisma.userFavorite.upsert({
       where: {
-        userId_speciesId: {
-          userId,
+        profileId_speciesId: {
+          profileId,
           speciesId: species.id,
         },
       },
       update: {},
       create: {
-        userId,
+        profileId,
         speciesId: species.id,
       },
       select: {
@@ -63,9 +65,11 @@ export class FavoritesService {
   }
 
   async getFavorites(userId: string) {
+    const profileId = await this.getMainProfileId(userId);
+
     return this.prisma.userFavorite.findMany({
       where: {
-        userId,
+        profileId,
       },
       orderBy: {
         species: {
@@ -102,6 +106,8 @@ export class FavoritesService {
   }
 
   async removeFavorite(userId: string, pokemonExternalId: number) {
+    const profileId = await this.getMainProfileId(userId);
+
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId: pokemonExternalId,
@@ -119,7 +125,7 @@ export class FavoritesService {
 
     await this.prisma.userFavorite.deleteMany({
       where: {
-        userId,
+        profileId,
         speciesId: species.id,
       },
     });
@@ -127,5 +133,25 @@ export class FavoritesService {
     return {
       removed: true,
     };
+  }
+
+  private async getMainProfileId(userId: string) {
+    const profile = await this.prisma.collectionProfile.findUnique({
+      where: {
+        userId_name: {
+          userId,
+          name: 'Main',
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Collection profile not found');
+    }
+
+    return profile.id;
   }
 }

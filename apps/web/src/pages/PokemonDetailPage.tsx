@@ -8,6 +8,7 @@ import type {
   PokemonDetail,
   PokemonEncountersResponse,
 } from '../types/pokemon';
+import { useFavorites } from '../favorites/useFavorites';
 
 export function PokemonDetailPage() {
   const [updatingCollection, setUpdatingCollection] =
@@ -26,6 +27,16 @@ export function PokemonDetailPage() {
 
   const collected = isCollected(pokemonId);
 
+  const {
+    isFavorite,
+    loading: favoritesLoading,
+    toggleFavorite,
+  } = useFavorites();
+
+  const favorite = isFavorite(pokemonId);
+
+  const [updatingFavorite, setUpdatingFavorite] = useState(false);
+
   const [pokemon, setPokemon] =
     useState<PokemonDetail | null>(null);
 
@@ -43,6 +54,16 @@ export function PokemonDetailPage() {
       await toggleCollection(pokemonId);
     } finally {
       setUpdatingCollection(false);
+    }
+  }
+
+  async function handleFavoriteToggle() {
+    setUpdatingFavorite(true);
+
+    try {
+      await toggleFavorite(pokemonId);
+    } finally {
+      setUpdatingFavorite(false);
     }
   }
 
@@ -185,24 +206,45 @@ export function PokemonDetailPage() {
               </div>
 
               {user && (
-                <button
-                  type="button"
-                  onClick={() => void handleCollectionToggle()}
-                  disabled={
-                    collectionLoading || updatingCollection
-                  }
-                  className={
-                    collected
-                      ? 'shrink-0 rounded-lg border border-emerald-800 bg-emerald-950/40 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-950/70 disabled:cursor-not-allowed disabled:opacity-50'
-                      : 'shrink-0 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50'
-                  }
-                >
-                  {updatingCollection
-                    ? 'Updating...'
-                    : collected
-                      ? 'Captured'
-                      : 'Add to collection'}
-                </button>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleFavoriteToggle()}
+                    disabled={
+                      favoritesLoading || updatingFavorite
+                    }
+                    className={
+                      favorite
+                        ? 'rounded-lg border border-amber-700 bg-amber-950/40 px-4 py-2 text-sm font-medium text-amber-300 transition hover:bg-amber-950/70 disabled:cursor-not-allowed disabled:opacity-50'
+                        : 'rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50'
+                    }
+                  >
+                    {updatingFavorite
+                      ? 'Updating...'
+                      : favorite
+                        ? 'Favorite'
+                        : 'Add to favorites'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleCollectionToggle()}
+                    disabled={
+                      collectionLoading || updatingCollection
+                    }
+                    className={
+                      collected
+                        ? 'rounded-lg border border-emerald-800 bg-emerald-950/40 px-4 py-2 text-sm font-medium text-emerald-300 transition hover:bg-emerald-950/70 disabled:cursor-not-allowed disabled:opacity-50'
+                        : 'rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50'
+                    }
+                  >
+                    {updatingCollection
+                      ? 'Updating...'
+                      : collected
+                        ? 'Captured'
+                        : 'Add to collection'}
+                  </button>
+                </div>
               )}
             </div>
 

@@ -53,9 +53,18 @@ export function Navbar() {
               </span>
             )}
 
-            <span className="cursor-default text-zinc-600">
-              Favorites
-            </span>
+            {user ? (
+              <Link
+                to="/favorites"
+                className="text-zinc-300 transition hover:text-white"
+              >
+                Favorites
+              </Link>
+            ) : (
+              <span className="cursor-default text-zinc-600">
+                Favorites
+              </span>
+            )}
           </div>
 
           {!loading && (

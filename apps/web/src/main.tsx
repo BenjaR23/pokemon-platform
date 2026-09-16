@@ -5,14 +5,17 @@ import './index.css';
 import App from './App.tsx';
 import { AuthProvider } from './auth/authProvider.tsx';
 import { CollectionProvider } from './collection/CollectionProvider.tsx';
+import { FavoritesProvider } from './favorites/FavoritesProvider.tsx';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
       <CollectionProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <FavoritesProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </FavoritesProvider>  
       </CollectionProvider>
     </AuthProvider>
   </StrictMode>,

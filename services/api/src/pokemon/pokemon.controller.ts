@@ -74,7 +74,7 @@ export class PokemonController {
    * POST /pokemon/sync
    *
    * {
-   *  "starId": 1,
+   *  "startId": 1,
    *  "endId": 3
    * }
    */

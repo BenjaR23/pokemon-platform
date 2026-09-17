@@ -5,7 +5,13 @@ import { PrismaService } from '../prisma/prisma.service';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async addToCollection(userId: string, pokemonExternalId: number) {
+  async addToCollection(
+    userId: string,
+    profileId: string,
+    pokemonExternalId: number,
+  ) {
+    await this.validateProfileOwnership(userId, profileId);
+
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId: pokemonExternalId,
@@ -23,14 +29,14 @@ export class UsersService {
 
     return this.prisma.userCollection.upsert({
       where: {
-        userId_speciesId: {
-          userId,
+        profileId_speciesId: {
+          profileId,
           speciesId: species.id,
         },
       },
       update: {},
       create: {
-        userId,
+        profileId,
         speciesId: species.id,
       },
       select: {
@@ -62,10 +68,12 @@ export class UsersService {
     });
   }
 
-  async getCollection(userId: string) {
+  async getCollection(userId: string, profileId: string) {
+    await this.validateProfileOwnership(userId, profileId);
+
     const collection = await this.prisma.userCollection.findMany({
       where: {
-        userId,
+        profileId,
       },
       orderBy: {
         createdAt: 'desc',
@@ -101,7 +109,13 @@ export class UsersService {
     return collection;
   }
 
-  async removeFromCollection(userId: string, pokemonExternalId: number) {
+  async removeFromCollection(
+    userId: string,
+    profileId: string,
+    pokemonExternalId: number,
+  ) {
+    await this.validateProfileOwnership(userId, profileId);
+
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId: pokemonExternalId,
@@ -119,7 +133,7 @@ export class UsersService {
 
     await this.prisma.userCollection.deleteMany({
       where: {
-        userId,
+        profileId,
         speciesId: species.id,
       },
     });
@@ -127,5 +141,21 @@ export class UsersService {
     return {
       removed: true,
     };
+  }
+
+  private async validateProfileOwnership(userId: string, profileId: string) {
+    const profile = await this.prisma.collectionProfile.findFirst({
+      where: {
+        id: profileId,
+        userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Collection profile not found');
+    }
   }
 }

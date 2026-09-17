@@ -105,8 +105,9 @@ model Generation {
   externalId Int    @unique @map("external_id")
   name       String
 
-  versionGroups VersionGroup[]
-  species       PokemonSpecies[]
+  versionGroups      VersionGroup[]
+  species            PokemonSpecies[]
+  collectionProfiles CollectionProfileGeneration[]
 
   @@map("generations")
 }
@@ -418,23 +419,22 @@ model User {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   profiles     CollectionProfile[]
-  collection   UserCollection[]
-  favorites    UserFavorite[]
 
   @@map("users")
 }
 
 model UserCollection {
-  id        String               @id @default(uuid())
-  userId    String               @map("user_id")
-  speciesId String               @map("species_id")
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
-  species   PokemonSpecies       @relation(fields: [speciesId], references: [id])
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  forms     UserCollectionForm[]
+  id        String   @id @default(uuid())
+  profileId String   @map("profile_id")
+  speciesId String   @map("species_id")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([userId, speciesId])
+  species PokemonSpecies       @relation(fields: [speciesId], references: [id])
+  profile CollectionProfile    @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  forms   UserCollectionForm[]
+
+  @@unique([profileId, speciesId])
   @@map("user_collection")
 }
 
@@ -451,29 +451,54 @@ model UserCollectionForm {
 }
 
 model UserFavorite {
-  id        String         @id @default(uuid())
-  userId    String         @map("user_id")
-  speciesId String         @map("species_id")
-  createdAt DateTime       @default(now())
-  species   PokemonSpecies @relation(fields: [speciesId], references: [id])
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid())
+  profileId String   @map("profile_id")
+  speciesId String   @map("species_id")
+  createdAt DateTime @default(now())
 
-  @@unique([userId, speciesId])
+  species PokemonSpecies    @relation(fields: [speciesId], references: [id])
+  profile CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, speciesId])
   @@map("user_favorites")
 }
 
+enum CollectionObjectiveMode {
+  ALL
+  GENERATIONS
+  RANGE
+}
+
 model CollectionProfile {
-  id          String                       @id @default(uuid())
-  userId      String                       @map("user_id")
-  name        String
-  createdAt   DateTime                     @default(now())
-  updatedAt   DateTime                     @updatedAt
+  id                 String                  @id @default(uuid())
+  userId             String                  @map("user_id")
+  name               String
+  objectiveMode      CollectionObjectiveMode @default(ALL) @map("objective_mode")
+  startPokemonNumber Int?                    @map("start_pokemon_number")
+  endPokemonNumber   Int?                    @map("end_pokemon_number")
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  user        User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generations CollectionProfileGeneration[]
+  collection  UserCollection[]
+  favorites   UserFavorite[]
   games       CollectionProfileGame[]
   preferences CollectionProfilePreference?
-  user        User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
   @@map("collection_profiles")
+}
+
+model CollectionProfileGeneration {
+  profileId    String @map("profile_id")
+  generationId String @map("generation_id")
+
+  profile    CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  generation Generation        @relation(fields: [generationId], references: [id])
+
+  @@id([profileId, generationId])
+  @@map("collection_profile_generations")
 }
 
 model CollectionProfileGame {

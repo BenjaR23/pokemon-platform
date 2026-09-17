@@ -5,7 +5,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class FavoritesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async addFavorite(userId: string, pokemonExternalId: number) {
+  async addFavorite(
+    userId: string,
+    profileId: string,
+    pokemonExternalId: number,
+  ) {
+    await this.validateProfileOwnership(userId, profileId);
+
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId: pokemonExternalId,
@@ -23,14 +29,14 @@ export class FavoritesService {
 
     return this.prisma.userFavorite.upsert({
       where: {
-        userId_speciesId: {
-          userId,
+        profileId_speciesId: {
+          profileId,
           speciesId: species.id,
         },
       },
       update: {},
       create: {
-        userId,
+        profileId,
         speciesId: species.id,
       },
       select: {
@@ -62,10 +68,12 @@ export class FavoritesService {
     });
   }
 
-  async getFavorites(userId: string) {
+  async getFavorites(userId: string, profileId: string) {
+    await this.validateProfileOwnership(userId, profileId);
+
     return this.prisma.userFavorite.findMany({
       where: {
-        userId,
+        profileId,
       },
       orderBy: {
         species: {
@@ -101,7 +109,13 @@ export class FavoritesService {
     });
   }
 
-  async removeFavorite(userId: string, pokemonExternalId: number) {
+  async removeFavorite(
+    userId: string,
+    profileId: string,
+    pokemonExternalId: number,
+  ) {
+    await this.validateProfileOwnership(userId, profileId);
+
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
         externalId: pokemonExternalId,
@@ -119,7 +133,7 @@ export class FavoritesService {
 
     await this.prisma.userFavorite.deleteMany({
       where: {
-        userId,
+        profileId,
         speciesId: species.id,
       },
     });
@@ -127,5 +141,21 @@ export class FavoritesService {
     return {
       removed: true,
     };
+  }
+
+  private async validateProfileOwnership(userId: string, profileId: string) {
+    const profile = await this.prisma.collectionProfile.findFirst({
+      where: {
+        id: profileId,
+        userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundException('Collection profile not found');
+    }
   }
 }

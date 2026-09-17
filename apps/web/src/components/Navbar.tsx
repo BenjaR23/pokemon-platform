@@ -1,20 +1,44 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import { ProfileSidebar } from '../profiles/ProfileSidebar';
+import { useProfile } from '../profiles/useProfile';
 
 export function Navbar() {
   const navigate = useNavigate();
-  const { user, loading, logout } = useAuth();
 
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const {
+    user,
+    loading,
+    logout,
+  } = useAuth();
+
+  const {
+    activeProfile,
+  } = useProfile();
+
+  const [loggingOut, setLoggingOut] =
+    useState(false);
+
+  const [
+    showLogoutConfirm,
+    setShowLogoutConfirm,
+  ] = useState(false);
+
+  const [
+    profileSidebarOpen,
+    setProfileSidebarOpen,
+  ] = useState(false);
 
   async function handleLogout() {
     setLoggingOut(true);
 
     try {
       await logout();
+
       setShowLogoutConfirm(false);
+      setProfileSidebarOpen(false);
+
       navigate('/');
     } finally {
       setLoggingOut(false);
@@ -40,15 +64,15 @@ export function Navbar() {
               Pokédex
             </Link>
 
-            { user ? (
+            {user ? (
               <Link
                 to="/collection"
-                className='text-zinc-300 transition hover:text-white'
+                className="text-zinc-300 transition hover:text-white"
               >
                 Collection
               </Link>
             ) : (
-              <span className='cursor-default text-zinc-600'>
+              <span className="cursor-default text-zinc-600">
                 Collection
               </span>
             )}
@@ -71,6 +95,24 @@ export function Navbar() {
             <div className="flex items-center gap-4">
               {user ? (
                 <>
+                  {activeProfile && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProfileSidebarOpen(true)
+                      }
+                      className="flex items-center rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 transition hover:border-zinc-500 hover:bg-zinc-800"
+                    >
+                      <span className="max-w-40 truncate">
+                        {activeProfile.name}
+                      </span>
+
+                      <span className="ml-2 text-zinc-500">
+                        ▾
+                      </span>
+                    </button>
+                  )}
+
                   <span className="text-sm text-zinc-300">
                     Hello,{' '}
                     <span className="font-medium text-zinc-100">
@@ -111,6 +153,13 @@ export function Navbar() {
         </nav>
       </header>
 
+      <ProfileSidebar
+        open={profileSidebarOpen}
+        onClose={() =>
+          setProfileSidebarOpen(false)
+        }
+      />
+
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-sm rounded-2xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
@@ -136,7 +185,9 @@ export function Navbar() {
 
               <button
                 type="button"
-                onClick={() => void handleLogout()}
+                onClick={() =>
+                  void handleLogout()
+                }
                 disabled={loggingOut}
                 className="rounded-lg border border-red-900 bg-red-950/40 px-4 py-2 text-sm font-medium text-red-300 transition hover:border-red-700 hover:bg-red-950/70 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
               >

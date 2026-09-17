@@ -2687,24 +2687,25 @@ describe('PokemonService', () => {
 
     await service.findAll(1, 24, 'pika');
 
-    expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
+    const where = {
+      AND: [
+        {
           name: {
             contains: 'pika',
-            mode: 'insensitive',
+            mode: 'insensitive' as const,
           },
         },
+      ],
+    };
+
+    expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
       }),
     );
 
     expect(prismaMock.pokemonSpecies.count).toHaveBeenCalledWith({
-      where: {
-        name: {
-          contains: 'pika',
-          mode: 'insensitive',
-        },
-      },
+      where,
     });
   });
 
@@ -2715,18 +2716,22 @@ describe('PokemonService', () => {
     await service.findAll(1, 24, undefined, 'electric');
 
     const where = {
-      varieties: {
-        some: {
-          isDefault: true,
-          types: {
+      AND: [
+        {
+          varieties: {
             some: {
-              type: {
-                name: 'electric',
+              isDefault: true,
+              types: {
+                some: {
+                  type: {
+                    name: 'electric',
+                  },
+                },
               },
             },
           },
         },
-      },
+      ],
     };
 
     expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
@@ -2747,22 +2752,28 @@ describe('PokemonService', () => {
     await service.findAll(1, 24, 'pi', 'electric');
 
     const where = {
-      name: {
-        contains: 'pi',
-        mode: 'insensitive' as const,
-      },
-      varieties: {
-        some: {
-          isDefault: true,
-          types: {
+      AND: [
+        {
+          name: {
+            contains: 'pi',
+            mode: 'insensitive' as const,
+          },
+        },
+        {
+          varieties: {
             some: {
-              type: {
-                name: 'electric',
+              isDefault: true,
+              types: {
+                some: {
+                  type: {
+                    name: 'electric',
+                  },
+                },
               },
             },
           },
         },
-      },
+      ],
     };
 
     expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
@@ -2785,14 +2796,22 @@ describe('PokemonService', () => {
     expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          externalId: 25,
+          AND: [
+            {
+              externalId: 25,
+            },
+          ],
         },
       }),
     );
 
     expect(prismaMock.pokemonSpecies.count).toHaveBeenCalledWith({
       where: {
-        externalId: 25,
+        AND: [
+          {
+            externalId: 25,
+          },
+        ],
       },
     });
   });
@@ -2804,9 +2823,13 @@ describe('PokemonService', () => {
     await service.findAll(1, 24, undefined, undefined, 1);
 
     const where = {
-      generation: {
-        externalId: 1,
-      },
+      AND: [
+        {
+          generation: {
+            externalId: 1,
+          },
+        },
+      ],
     };
 
     expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
@@ -2827,25 +2850,33 @@ describe('PokemonService', () => {
     await service.findAll(1, 24, 'char', 'fire', 1);
 
     const where = {
-      name: {
-        contains: 'char',
-        mode: 'insensitive' as const,
-      },
-      varieties: {
-        some: {
-          isDefault: true,
-          types: {
+      AND: [
+        {
+          name: {
+            contains: 'char',
+            mode: 'insensitive' as const,
+          },
+        },
+        {
+          varieties: {
             some: {
-              type: {
-                name: 'fire',
+              isDefault: true,
+              types: {
+                some: {
+                  type: {
+                    name: 'fire',
+                  },
+                },
               },
             },
           },
         },
-      },
-      generation: {
-        externalId: 1,
-      },
+        {
+          generation: {
+            externalId: 1,
+          },
+        },
+      ],
     };
 
     expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
@@ -2928,5 +2959,105 @@ describe('PokemonService', () => {
     await expect(service.findEncounters(25, 10091)).rejects.toThrow(
       'Variant with id 10091 was not found for Pokemon 25',
     );
+  });
+
+  it('filters pokemon by multiple generations', async () => {
+    prismaMock.pokemonSpecies.findMany.mockResolvedValue([]);
+    prismaMock.pokemonSpecies.count.mockResolvedValue(0);
+
+    await service.findAll(1, 24, undefined, undefined, undefined, [1, 2]);
+
+    const where = {
+      AND: [
+        {
+          generation: {
+            externalId: {
+              in: [1, 2],
+            },
+          },
+        },
+      ],
+    };
+
+    expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
+      }),
+    );
+
+    expect(prismaMock.pokemonSpecies.count).toHaveBeenCalledWith({
+      where,
+    });
+  });
+
+  it('filters pokemon by external id range', async () => {
+    prismaMock.pokemonSpecies.findMany.mockResolvedValue([]);
+    prismaMock.pokemonSpecies.count.mockResolvedValue(0);
+
+    await service.findAll(
+      1,
+      24,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      1,
+      151,
+    );
+
+    const where = {
+      AND: [
+        {
+          externalId: {
+            gte: 1,
+            lte: 151,
+          },
+        },
+      ],
+    };
+
+    expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
+      }),
+    );
+
+    expect(prismaMock.pokemonSpecies.count).toHaveBeenCalledWith({
+      where,
+    });
+  });
+
+  it('combines objective generations with the regular generation filter', async () => {
+    prismaMock.pokemonSpecies.findMany.mockResolvedValue([]);
+    prismaMock.pokemonSpecies.count.mockResolvedValue(0);
+
+    await service.findAll(1, 24, undefined, undefined, 2, [1, 2, 3]);
+
+    const where = {
+      AND: [
+        {
+          generation: {
+            externalId: 2,
+          },
+        },
+        {
+          generation: {
+            externalId: {
+              in: [1, 2, 3],
+            },
+          },
+        },
+      ],
+    };
+
+    expect(prismaMock.pokemonSpecies.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where,
+      }),
+    );
+
+    expect(prismaMock.pokemonSpecies.count).toHaveBeenCalledWith({
+      where,
+    });
   });
 });

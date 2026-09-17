@@ -11,6 +11,9 @@ describe('FavoritesService', () => {
       findMany: jest.fn(),
       deleteMany: jest.fn(),
     },
+    collectionProfile: {
+      findFirst: jest.fn(),
+    },
   };
 
   let service: FavoritesService;
@@ -19,9 +22,13 @@ describe('FavoritesService', () => {
     jest.clearAllMocks();
 
     service = new FavoritesService(prisma as never);
+
+    prisma.collectionProfile.findFirst.mockResolvedValue({
+      id: 'profile-id',
+    });
   });
 
-  it('adds a Pokemon species to favorites', async () => {
+  it('adds a Pokemon species to profile favorites', async () => {
     prisma.pokemonSpecies.findUnique.mockResolvedValue({
       id: 'species-id',
     });
@@ -45,7 +52,17 @@ describe('FavoritesService', () => {
       },
     });
 
-    const result = await service.addFavorite('user-id', 25);
+    const result = await service.addFavorite('user-id', 'profile-id', 25);
+
+    expect(prisma.collectionProfile.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'profile-id',
+        userId: 'user-id',
+      },
+      select: {
+        id: true,
+      },
+    });
 
     expect(prisma.pokemonSpecies.findUnique).toHaveBeenCalledWith({
       where: {
@@ -58,14 +75,14 @@ describe('FavoritesService', () => {
 
     expect(prisma.userFavorite.upsert).toHaveBeenCalledWith({
       where: {
-        userId_speciesId: {
-          userId: 'user-id',
+        profileId_speciesId: {
+          profileId: 'profile-id',
           speciesId: 'species-id',
         },
       },
       update: {},
       create: {
-        userId: 'user-id',
+        profileId: 'profile-id',
         speciesId: 'species-id',
       },
       select: {
@@ -102,9 +119,9 @@ describe('FavoritesService', () => {
   it('throws when adding a Pokemon that does not exist', async () => {
     prisma.pokemonSpecies.findUnique.mockResolvedValue(null);
 
-    await expect(service.addFavorite('user-id', 9999)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.addFavorite('user-id', 'profile-id', 9999),
+    ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(prisma.userFavorite.upsert).not.toHaveBeenCalled();
   });
@@ -149,11 +166,21 @@ describe('FavoritesService', () => {
       },
     ]);
 
-    const result = await service.getFavorites('user-id');
+    const result = await service.getFavorites('user-id', 'profile-id');
+
+    expect(prisma.collectionProfile.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'profile-id',
+        userId: 'user-id',
+      },
+      select: {
+        id: true,
+      },
+    });
 
     expect(prisma.userFavorite.findMany).toHaveBeenCalledWith({
       where: {
-        userId: 'user-id',
+        profileId: 'profile-id',
       },
       orderBy: {
         species: {
@@ -193,7 +220,7 @@ describe('FavoritesService', () => {
     expect(result[1].species.externalId).toBe(133);
   });
 
-  it('removes a Pokemon from favorites', async () => {
+  it('removes a Pokemon from profile favorites', async () => {
     prisma.pokemonSpecies.findUnique.mockResolvedValue({
       id: 'species-id',
     });
@@ -202,11 +229,11 @@ describe('FavoritesService', () => {
       count: 1,
     });
 
-    const result = await service.removeFavorite('user-id', 25);
+    const result = await service.removeFavorite('user-id', 'profile-id', 25);
 
     expect(prisma.userFavorite.deleteMany).toHaveBeenCalledWith({
       where: {
-        userId: 'user-id',
+        profileId: 'profile-id',
         speciesId: 'species-id',
       },
     });
@@ -225,7 +252,7 @@ describe('FavoritesService', () => {
       count: 0,
     });
 
-    const result = await service.removeFavorite('user-id', 25);
+    const result = await service.removeFavorite('user-id', 'profile-id', 25);
 
     expect(result).toEqual({
       removed: true,
@@ -236,9 +263,19 @@ describe('FavoritesService', () => {
     prisma.pokemonSpecies.findUnique.mockResolvedValue(null);
 
     await expect(
-      service.removeFavorite('user-id', 9999),
+      service.removeFavorite('user-id', 'profile-id', 9999),
     ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(prisma.userFavorite.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects access to a profile not owned by the user', async () => {
+    prisma.collectionProfile.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.getFavorites('user-id', 'other-profile-id'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.userFavorite.findMany).not.toHaveBeenCalled();
   });
 });

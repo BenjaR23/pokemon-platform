@@ -13,6 +13,7 @@ import { Pagination } from '../components/Pagination';
 import { PokedexFilters } from '../components/PokedexFilters';
 import { PokemonList } from '../components/PokemonList';
 import { PokemonListLoader } from '../components/PokemonListLoader';
+import { useProfile } from '../profiles/useProfile';
 
 import type {
   PokemonGenerationOption,
@@ -21,46 +22,16 @@ import type {
 } from '../types/pokemon';
 
 export function PokedexPage() {
-  const [pokemon, setPokemon] =
-    useState<PokemonListItem[]>([]);
-
-  const [totalPages, setTotalPages] =
-    useState(1);
-
-  const [isLoading, setIsLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const [search, setSearch] =
-    useState('');
-
-  const [
-    debouncedSearch,
-    setDebouncedSearch,
-  ] = useState('');
-
-  const [types, setTypes] =
-    useState<PokemonTypeOption[]>([]);
-
-  const [
-    selectedType,
-    setSelectedType,
-  ] = useState('');
-
-  const [
-    generations,
-    setGenerations,
-  ] =
-    useState<PokemonGenerationOption[]>(
-      [],
-    );
-
-  const [
-    selectedGeneration,
-    setSelectedGeneration,
-  ] = useState('');
+  const [pokemon, setPokemon] = useState<PokemonListItem[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [types, setTypes] = useState<PokemonTypeOption[]>([]);
+  const [selectedType, setSelectedType] = useState('');
+  const [generations, setGenerations] = useState<PokemonGenerationOption[]>([]);
+  const [selectedGeneration, setSelectedGeneration] = useState('');
 
   const [page, setPage] = useState(
     () => {
@@ -77,6 +48,34 @@ export function PokedexPage() {
         : 1;
     },
   );
+
+  const { activeProfile } = useProfile();
+
+  const [objectiveOnly, setObjectiveOnly] = useState(false);
+
+  const objectiveGenerationIds =
+    objectiveOnly &&
+    activeProfile?.objectiveMode ===
+      'GENERATIONS'
+      ? activeProfile.generations.map(
+          (entry) =>
+            entry.generation.externalId,
+        )
+      : undefined;
+
+  const objectiveMinPokemonId =
+    objectiveOnly &&
+    activeProfile?.objectiveMode === 'RANGE'
+      ? activeProfile.startPokemonNumber ??
+        undefined
+      : undefined;
+
+  const objectiveMaxPokemonId =
+    objectiveOnly &&
+    activeProfile?.objectiveMode === 'RANGE'
+      ? activeProfile.endPokemonNumber ??
+        undefined
+      : undefined;
 
   useEffect(() => {
     const timeoutId = setTimeout(
@@ -132,23 +131,24 @@ export function PokedexPage() {
         setIsLoading(true);
         setError(null);
 
-        const data =
-          await getPokemon({
-            page,
-            pageSize: 24,
-            search:
-              debouncedSearch ||
-              undefined,
-            type:
-              selectedType ||
-              undefined,
-            generation:
-              selectedGeneration
-                ? Number(
-                    selectedGeneration,
-                  )
-                : undefined,
-          });
+        const data = await getPokemon({
+          page,
+          pageSize: 24,
+          search:
+            debouncedSearch || undefined,
+          type:
+            selectedType || undefined,
+          generation:
+            selectedGeneration
+              ? Number(selectedGeneration)
+              : undefined,
+          generationIds:
+            objectiveGenerationIds,
+          minPokemonId:
+            objectiveMinPokemonId,
+          maxPokemonId:
+            objectiveMaxPokemonId,
+        });
 
         setPokemon(data.items);
 
@@ -182,6 +182,15 @@ export function PokedexPage() {
     debouncedSearch,
     selectedType,
     selectedGeneration,
+    objectiveOnly,
+    objectiveGenerationIds,
+    objectiveMaxPokemonId,
+    objectiveMinPokemonId,
+    activeProfile?.id,
+    activeProfile?.objectiveMode,
+    activeProfile?.startPokemonNumber,
+    activeProfile?.endPokemonNumber,
+    activeProfile?.generations,
   ]);
 
   const isSearchPending =
@@ -203,6 +212,46 @@ export function PokedexPage() {
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-100 sm:text-4xl">
             Pokedex
           </h1>
+
+          {activeProfile && (
+            <div className="mt-6">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+                Show
+              </p>
+
+              <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-950 p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setObjectiveOnly(false);
+                    setPage(1);
+                  }}
+                  className={
+                    !objectiveOnly
+                      ? 'rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100'
+                      : 'rounded-lg px-4 py-2 text-sm text-zinc-500 transition hover:text-zinc-200'
+                  }
+                >
+                  All Pokémon
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setObjectiveOnly(true);
+                    setPage(1);
+                  }}
+                  className={
+                    objectiveOnly
+                      ? 'rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100'
+                      : 'rounded-lg px-4 py-2 text-sm text-zinc-500 transition hover:text-zinc-200'
+                  }
+                >
+                  Objective only
+                </button>
+              </div>
+            </div>
+          )}
 
           <PokedexFilters
             search={search}
@@ -237,6 +286,8 @@ export function PokedexPage() {
               setPage(1);
             }}
           />
+
+          
         </header>
 
         {error ? (

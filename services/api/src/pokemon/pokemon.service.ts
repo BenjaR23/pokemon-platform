@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PokeApiClient } from './pokeapi/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ReferenceDataService } from './reference-data.service.js';
@@ -647,13 +651,26 @@ export class PokemonService {
     search?: string,
     type?: string,
     generation?: number,
+    generationIds?: number[],
+    minPokemonId?: number,
+    maxPokemonId?: number,
   ) {
     const skip = (page - 1) * pageSize;
 
     const trimmedSearch = search?.trim();
     const trimmedType = type?.trim();
 
-    const where: Prisma.PokemonSpeciesWhereInput = {};
+    if (
+      minPokemonId !== undefined &&
+      maxPokemonId !== undefined &&
+      minPokemonId > maxPokemonId
+    ) {
+      throw new BadRequestException(
+        'Minimum Pokemon ID cannot be greater than maximum Pokemon ID',
+      );
+    }
+
+    const filters: Prisma.PokemonSpeciesWhereInput[] = [];
 
     if (trimmedSearch) {
       const numericSearch = /^\d+$/.test(trimmedSearch)
@@ -661,35 +678,69 @@ export class PokemonService {
         : null;
 
       if (numericSearch !== null) {
-        where.externalId = numericSearch;
+        filters.push({
+          externalId: numericSearch,
+        });
       } else {
-        where.name = {
-          contains: trimmedSearch,
-          mode: 'insensitive',
-        };
+        filters.push({
+          name: {
+            contains: trimmedSearch,
+            mode: 'insensitive',
+          },
+        });
       }
     }
 
     if (trimmedType) {
-      where.varieties = {
-        some: {
-          isDefault: true,
-          types: {
-            some: {
-              type: {
-                name: trimmedType,
+      filters.push({
+        varieties: {
+          some: {
+            isDefault: true,
+            types: {
+              some: {
+                type: {
+                  name: trimmedType,
+                },
               },
             },
           },
         },
-      };
+      });
     }
 
     if (generation) {
-      where.generation = {
-        externalId: generation,
-      };
+      filters.push({
+        generation: {
+          externalId: generation,
+        },
+      });
     }
+
+    if (generationIds && generationIds.length > 0) {
+      filters.push({
+        generation: {
+          externalId: {
+            in: generationIds,
+          },
+        },
+      });
+    }
+
+    if (minPokemonId !== undefined || maxPokemonId !== undefined) {
+      filters.push({
+        externalId: {
+          ...(minPokemonId !== undefined ? { gte: minPokemonId } : {}),
+          ...(maxPokemonId !== undefined ? { lte: maxPokemonId } : {}),
+        },
+      });
+    }
+
+    const where: Prisma.PokemonSpeciesWhereInput =
+      filters.length > 0
+        ? {
+            AND: filters,
+          }
+        : {};
 
     const [species, total] = await Promise.all([
       this.prisma.pokemonSpecies.findMany({
@@ -727,6 +778,7 @@ export class PokemonService {
           },
         },
       }),
+
       this.prisma.pokemonSpecies.count({
         where,
       }),

@@ -51,6 +51,9 @@ export class PokemonController {
       query.search,
       query.type,
       query.generation,
+      query.generationIds,
+      query.minPokemonId,
+      query.maxPokemonId,
     );
   }
 

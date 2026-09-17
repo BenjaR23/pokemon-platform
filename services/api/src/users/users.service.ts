@@ -5,8 +5,12 @@ import { PrismaService } from '../prisma/prisma.service';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async addToCollection(userId: string, pokemonExternalId: number) {
-    const profileId = await this.getMainProfileId(userId);
+  async addToCollection(
+    userId: string,
+    profileId: string,
+    pokemonExternalId: number,
+  ) {
+    await this.validateProfileOwnership(userId, profileId);
 
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
@@ -64,8 +68,8 @@ export class UsersService {
     });
   }
 
-  async getCollection(userId: string) {
-    const profileId = await this.getMainProfileId(userId);
+  async getCollection(userId: string, profileId: string) {
+    await this.validateProfileOwnership(userId, profileId);
 
     const collection = await this.prisma.userCollection.findMany({
       where: {
@@ -105,8 +109,12 @@ export class UsersService {
     return collection;
   }
 
-  async removeFromCollection(userId: string, pokemonExternalId: number) {
-    const profileId = await this.getMainProfileId(userId);
+  async removeFromCollection(
+    userId: string,
+    profileId: string,
+    pokemonExternalId: number,
+  ) {
+    await this.validateProfileOwnership(userId, profileId);
 
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
@@ -135,13 +143,11 @@ export class UsersService {
     };
   }
 
-  private async getMainProfileId(userId: string) {
-    const profile = await this.prisma.collectionProfile.findUnique({
+  private async validateProfileOwnership(userId: string, profileId: string) {
+    const profile = await this.prisma.collectionProfile.findFirst({
       where: {
-        userId_name: {
-          userId,
-          name: 'Main',
-        },
+        id: profileId,
+        userId,
       },
       select: {
         id: true,
@@ -151,7 +157,5 @@ export class UsersService {
     if (!profile) {
       throw new NotFoundException('Collection profile not found');
     }
-
-    return profile.id;
   }
 }

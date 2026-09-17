@@ -12,7 +12,7 @@ describe('UsersService', () => {
       deleteMany: jest.fn(),
     },
     collectionProfile: {
-      findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
 
@@ -23,12 +23,12 @@ describe('UsersService', () => {
 
     service = new UsersService(prisma as never);
 
-    prisma.collectionProfile.findUnique.mockResolvedValue({
+    prisma.collectionProfile.findFirst.mockResolvedValue({
       id: 'profile-id',
     });
   });
 
-  it('adds a Pokemon species to the user collection', async () => {
+  it('adds a Pokemon species to the profile collection', async () => {
     prisma.pokemonSpecies.findUnique.mockResolvedValue({
       id: 'species-id',
     });
@@ -52,7 +52,17 @@ describe('UsersService', () => {
       },
     });
 
-    const result = await service.addToCollection('profile-id', 25);
+    const result = await service.addToCollection('user-id', 'profile-id', 25);
+
+    expect(prisma.collectionProfile.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'profile-id',
+        userId: 'user-id',
+      },
+      select: {
+        id: true,
+      },
+    });
 
     expect(prisma.pokemonSpecies.findUnique).toHaveBeenCalledWith({
       where: {
@@ -127,13 +137,13 @@ describe('UsersService', () => {
     prisma.pokemonSpecies.findUnique.mockResolvedValue(null);
 
     await expect(
-      service.addToCollection('profile-id', 99999),
+      service.addToCollection('user-id', 'profile-id', 99999),
     ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(prisma.userCollection.upsert).not.toHaveBeenCalled();
   });
 
-  it('returns the authenticated user collection', async () => {
+  it('returns the authenticated profile collection', async () => {
     const collection = [
       {
         id: 'collection-id',
@@ -157,7 +167,17 @@ describe('UsersService', () => {
 
     prisma.userCollection.findMany.mockResolvedValue(collection);
 
-    const result = await service.getCollection('profile-id');
+    const result = await service.getCollection('user-id', 'profile-id');
+
+    expect(prisma.collectionProfile.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'profile-id',
+        userId: 'user-id',
+      },
+      select: {
+        id: true,
+      },
+    });
 
     expect(prisma.userCollection.findMany).toHaveBeenCalledWith({
       where: {
@@ -197,7 +217,7 @@ describe('UsersService', () => {
     expect(result).toEqual(collection);
   });
 
-  it('removes a Pokemon species from the user collection', async () => {
+  it('removes a Pokemon species from the profile collection', async () => {
     prisma.pokemonSpecies.findUnique.mockResolvedValue({
       id: 'species-id',
     });
@@ -206,7 +226,11 @@ describe('UsersService', () => {
       count: 1,
     });
 
-    const result = await service.removeFromCollection('profile-id', 25);
+    const result = await service.removeFromCollection(
+      'user-id',
+      'profile-id',
+      25,
+    );
 
     expect(prisma.userCollection.deleteMany).toHaveBeenCalledWith({
       where: {
@@ -229,7 +253,11 @@ describe('UsersService', () => {
       count: 0,
     });
 
-    const result = await service.removeFromCollection('profile-id', 25);
+    const result = await service.removeFromCollection(
+      'user-id',
+      'profile-id',
+      25,
+    );
 
     expect(result).toEqual({
       removed: true,
@@ -240,17 +268,19 @@ describe('UsersService', () => {
     prisma.pokemonSpecies.findUnique.mockResolvedValue(null);
 
     await expect(
-      service.removeFromCollection('profile-id', 99999),
+      service.removeFromCollection('user-id', 'profile-id', 99999),
     ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(prisma.userCollection.deleteMany).not.toHaveBeenCalled();
   });
 
-  it('throws when the main profile does not exist', async () => {
-    prisma.collectionProfile.findUnique.mockResolvedValue(null);
+  it('rejects access to a profile not owned by the user', async () => {
+    prisma.collectionProfile.findFirst.mockResolvedValue(null);
 
-    await expect(service.getCollection('user-id')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.getCollection('user-id', 'other-profile-id'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    expect(prisma.userCollection.findMany).not.toHaveBeenCalled();
   });
 });

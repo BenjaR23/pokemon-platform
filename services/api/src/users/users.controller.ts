@@ -26,58 +26,6 @@ export class UsersController {
     private readonly profilesService: ProfilesService,
   ) {}
 
-  @Post('me/collection/:pokemonId')
-  @UseGuards(AuthGuard)
-  addToCollection(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('pokemonId', ParseIntPipe)
-    pokemonId: number,
-  ) {
-    return this.usersService.addToCollection(user.id, pokemonId);
-  }
-
-  @Get('me/collection')
-  @UseGuards(AuthGuard)
-  getCollection(@CurrentUser() user: AuthenticatedUser) {
-    return this.usersService.getCollection(user.id);
-  }
-
-  @Delete('me/collection/:pokemonId')
-  @UseGuards(AuthGuard)
-  removeFromCollection(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('pokemonId', ParseIntPipe)
-    pokemonId: number,
-  ) {
-    return this.usersService.removeFromCollection(user.id, pokemonId);
-  }
-
-  @Post('me/favorites/:pokemonId')
-  @UseGuards(AuthGuard)
-  addFavorite(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('pokemonId', ParseIntPipe)
-    pokemonId: number,
-  ) {
-    return this.favoritesService.addFavorite(user.id, pokemonId);
-  }
-
-  @Get('me/favorites')
-  @UseGuards(AuthGuard)
-  getFavorites(@CurrentUser() user: AuthenticatedUser) {
-    return this.favoritesService.getFavorites(user.id);
-  }
-
-  @Delete('me/favorites/:pokemonId')
-  @UseGuards(AuthGuard)
-  removeFavorite(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('pokemonId', ParseIntPipe)
-    pokemonId: number,
-  ) {
-    return this.favoritesService.removeFavorite(user.id, pokemonId);
-  }
-
   @Post('me/profiles')
   @UseGuards(AuthGuard)
   createProfile(
@@ -119,5 +67,71 @@ export class UsersController {
     @Param('profileId') profileId: string,
   ) {
     return this.profilesService.deleteProfile(user.id, profileId);
+  }
+
+  @Post('me/profiles/:profileId/collection/:pokemonId')
+  @UseGuards(AuthGuard)
+  addToProfileCollection(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+    @Param('pokemonId', ParseIntPipe)
+    pokemonId: number,
+  ) {
+    return this.usersService.addToCollection(user.id, profileId, pokemonId);
+  }
+
+  @Get('me/profiles/:profileId/collection')
+  @UseGuards(AuthGuard)
+  getProfileCollection(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+  ) {
+    return this.usersService.getCollection(user.id, profileId);
+  }
+
+  @Delete('me/profiles/:profileId/collection/:pokemonId')
+  @UseGuards(AuthGuard)
+  removeFromProfileCollection(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+    @Param('pokemonId', ParseIntPipe)
+    pokemonId: number,
+  ) {
+    return this.usersService.removeFromCollection(
+      user.id,
+      profileId,
+      pokemonId,
+    );
+  }
+
+  @Post('me/profiles/:profileId/favorites/:pokemonId')
+  @UseGuards(AuthGuard)
+  addProfileFavorite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+    @Param('pokemonId', ParseIntPipe)
+    pokemonId: number,
+  ) {
+    return this.favoritesService.addFavorite(user.id, profileId, pokemonId);
+  }
+
+  @Get('me/profiles/:profileId/favorites')
+  @UseGuards(AuthGuard)
+  getProfileFavorites(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+  ) {
+    return this.favoritesService.getFavorites(user.id, profileId);
+  }
+
+  @Delete('me/profiles/:profileId/favorites/:pokemonId')
+  @UseGuards(AuthGuard)
+  removeProfileFavorite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+    @Param('pokemonId', ParseIntPipe)
+    pokemonId: number,
+  ) {
+    return this.favoritesService.removeFavorite(user.id, profileId, pokemonId);
   }
 }

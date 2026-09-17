@@ -5,8 +5,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class FavoritesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async addFavorite(userId: string, pokemonExternalId: number) {
-    const profileId = await this.getMainProfileId(userId);
+  async addFavorite(
+    userId: string,
+    profileId: string,
+    pokemonExternalId: number,
+  ) {
+    await this.validateProfileOwnership(userId, profileId);
 
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
@@ -64,8 +68,8 @@ export class FavoritesService {
     });
   }
 
-  async getFavorites(userId: string) {
-    const profileId = await this.getMainProfileId(userId);
+  async getFavorites(userId: string, profileId: string) {
+    await this.validateProfileOwnership(userId, profileId);
 
     return this.prisma.userFavorite.findMany({
       where: {
@@ -105,8 +109,12 @@ export class FavoritesService {
     });
   }
 
-  async removeFavorite(userId: string, pokemonExternalId: number) {
-    const profileId = await this.getMainProfileId(userId);
+  async removeFavorite(
+    userId: string,
+    profileId: string,
+    pokemonExternalId: number,
+  ) {
+    await this.validateProfileOwnership(userId, profileId);
 
     const species = await this.prisma.pokemonSpecies.findUnique({
       where: {
@@ -135,13 +143,11 @@ export class FavoritesService {
     };
   }
 
-  private async getMainProfileId(userId: string) {
-    const profile = await this.prisma.collectionProfile.findUnique({
+  private async validateProfileOwnership(userId: string, profileId: string) {
+    const profile = await this.prisma.collectionProfile.findFirst({
       where: {
-        userId_name: {
-          userId,
-          name: 'Main',
-        },
+        id: profileId,
+        userId,
       },
       select: {
         id: true,
@@ -151,7 +157,5 @@ export class FavoritesService {
     if (!profile) {
       throw new NotFoundException('Collection profile not found');
     }
-
-    return profile.id;
   }
 }

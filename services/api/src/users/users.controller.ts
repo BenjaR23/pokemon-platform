@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
   Body,
+  Patch,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -15,6 +16,7 @@ import { FavoritesService } from './favorites.service';
 import { UsersService } from './users.service';
 import { CreateCollectionProfileDto } from './dto/create-collection-profile.dto';
 import { ProfilesService } from './profiles.service';
+import { UpdateCollectionProfileDto } from './dto/update-collection-profile.dto';
 
 @Controller('users')
 export class UsersController {
@@ -89,5 +91,33 @@ export class UsersController {
   @UseGuards(AuthGuard)
   getProfiles(@CurrentUser() user: AuthenticatedUser) {
     return this.profilesService.getProfiles(user.id);
+  }
+
+  @Get('me/profiles/:profileId')
+  @UseGuards(AuthGuard)
+  getProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+  ) {
+    return this.profilesService.getProfile(user.id, profileId);
+  }
+
+  @Patch('me/profiles/:profileId')
+  @UseGuards(AuthGuard)
+  updateProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+    @Body() dto: UpdateCollectionProfileDto,
+  ) {
+    return this.profilesService.updateProfile(user.id, profileId, dto);
+  }
+
+  @Delete('me/profiles/:profileId')
+  @UseGuards(AuthGuard)
+  deleteProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+  ) {
+    return this.profilesService.deleteProfile(user.id, profileId);
   }
 }

@@ -4,6 +4,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { useProfile } from '../profiles/useProfile';
 import {
   addFavorite,
   getFavorites,
@@ -21,6 +22,11 @@ export function FavoritesProvider({
 }: FavoritesProviderProps) {
   const { user, loading: authLoading } = useAuth();
 
+  const {
+    activeProfile,
+    loading: profileLoading,
+  } = useProfile();
+
   const [favorites, setFavorites] = useState<
     FavoriteEntry[]
   >([]);
@@ -28,10 +34,19 @@ export function FavoritesProvider({
   const [favoritesLoading, setFavoritesLoading] =
     useState(false);
 
+  const activeProfileId = activeProfile?.id;
+
   useEffect(() => {
-    if (authLoading || !user) {
+    if (
+      authLoading ||
+      profileLoading ||
+      !user ||
+      !activeProfileId
+    ) {
       return;
     }
+
+    const profileId = activeProfileId;
 
     let cancelled = false;
 
@@ -39,10 +54,12 @@ export function FavoritesProvider({
       setFavoritesLoading(true);
 
       try {
-        const data = await getFavorites();
+        const loadedFavorites = await getFavorites(profileId);
 
         if (!cancelled) {
-          setFavorites(data);
+          setFavorites(
+            loadedFavorites,
+          );
         }
       } finally {
         if (!cancelled) {
@@ -56,37 +73,58 @@ export function FavoritesProvider({
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading]);
+  }, [
+    authLoading,
+    profileLoading,
+    user,
+    activeProfileId,
+  ]);
 
-  const visibleFavorites = user
-    ? favorites
-    : [];
+  const visibleFavorites =
+    user && activeProfile
+      ? favorites
+      : [];
 
   const loading =
     authLoading ||
-    (user !== null && favoritesLoading);
+    profileLoading ||
+    (!!user &&
+      !!activeProfile &&
+      favoritesLoading);
 
   function isFavorite(pokemonId: number) {
     return visibleFavorites.some(
       (entry) =>
-        entry.species.externalId === pokemonId,
+        entry.species.externalId ===
+        pokemonId,
     );
   }
 
   async function toggleFavorite(
     pokemonId: number,
   ) {
-    if (!user) {
+    if (!user || !activeProfile) {
       return;
     }
 
-    if (isFavorite(pokemonId)) {
-      await removeFavorite(pokemonId);
+    const favorite =
+      favorites.some(
+        (entry) =>
+          entry.species.externalId ===
+          pokemonId,
+      );
+
+    if (favorite) {
+      await removeFavorite(
+        activeProfile.id,
+        pokemonId,
+      );
 
       setFavorites((current) =>
         current.filter(
           (entry) =>
-            entry.species.externalId !== pokemonId,
+            entry.species.externalId !==
+            pokemonId,
         ),
       );
 
@@ -94,19 +132,27 @@ export function FavoritesProvider({
     }
 
     const newFavorite =
-      await addFavorite(pokemonId);
+      await addFavorite(
+        activeProfile.id,
+        pokemonId,
+      );
 
     setFavorites((current) => {
-      const alreadyExists = current.some(
-        (entry) =>
-          entry.species.externalId === pokemonId,
-      );
+      const alreadyExists =
+        current.some(
+          (entry) =>
+            entry.species.externalId ===
+            pokemonId,
+        );
 
       if (alreadyExists) {
         return current;
       }
 
-      return [...current, newFavorite].sort(
+      return [
+        ...current,
+        newFavorite,
+      ].sort(
         (a, b) =>
           a.species.externalId -
           b.species.externalId,

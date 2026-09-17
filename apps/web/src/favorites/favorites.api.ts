@@ -17,11 +17,11 @@ export interface FavoriteEntry {
 
 const API_URL = 'http://localhost:3000';
 
-export async function getFavorites(): Promise<
-  FavoriteEntry[]
-> {
+export async function getFavorites(
+  profileId: string,
+): Promise<FavoriteEntry[]> {
   const response = await fetch(
-    `${API_URL}/users/me/favorites`,
+    `${API_URL}/users/me/profiles/${profileId}/favorites`,
     {
       credentials: 'include',
     },
@@ -35,14 +35,15 @@ export async function getFavorites(): Promise<
     throw new Error('Failed to load favorites');
   }
 
-  return response.json() as Promise<FavoriteEntry[]>;
+  return response.json();
 }
 
 export async function addFavorite(
+  profileId: string,
   pokemonId: number,
 ): Promise<FavoriteEntry> {
   const response = await fetch(
-    `${API_URL}/users/me/favorites/${pokemonId}`,
+    `${API_URL}/users/me/profiles/${profileId}/favorites/${pokemonId}`,
     {
       method: 'POST',
       credentials: 'include',
@@ -53,14 +54,15 @@ export async function addFavorite(
     throw new Error('Failed to add favorite');
   }
 
-  return response.json() as Promise<FavoriteEntry>;
+  return response.json();
 }
 
 export async function removeFavorite(
+  profileId: string,
   pokemonId: number,
 ): Promise<void> {
   const response = await fetch(
-    `${API_URL}/users/me/favorites/${pokemonId}`,
+    `${API_URL}/users/me/profiles/${profileId}/favorites/${pokemonId}`,
     {
       method: 'DELETE',
       credentials: 'include',

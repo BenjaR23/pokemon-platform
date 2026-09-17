@@ -4,6 +4,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { useProfile } from '../profiles/useProfile';
 import {
   addToCollection,
   getCollection,
@@ -21,6 +22,12 @@ export function CollectionProvider({
 }: CollectionProviderProps) {
   const { user, loading: authLoading } = useAuth();
 
+  const {
+    activeProfile,
+    loading: profileLoading,
+    refreshActiveProfile,
+  } = useProfile();
+
   const [collection, setCollection] = useState<
     CollectionEntry[]
   >([]);
@@ -28,10 +35,19 @@ export function CollectionProvider({
   const [collectionLoading, setCollectionLoading] =
     useState(false);
 
+  const activeProfileId = activeProfile?.id;
+
   useEffect(() => {
-    if (authLoading || !user) {
+    if (
+      authLoading ||
+      profileLoading ||
+      !user ||
+      !activeProfileId
+    ) {
       return;
     }
+
+    const profileId = activeProfileId;
 
     let cancelled = false;
 
@@ -39,10 +55,12 @@ export function CollectionProvider({
       setCollectionLoading(true);
 
       try {
-        const data = await getCollection();
+        const loadedCollection = await getCollection(profileId);
 
         if (!cancelled) {
-          setCollection(data);
+          setCollection(
+            loadedCollection,
+          );
         }
       } finally {
         if (!cancelled) {
@@ -56,58 +74,85 @@ export function CollectionProvider({
     return () => {
       cancelled = true;
     };
-  }, [user, authLoading]);
+  }, [
+    authLoading,
+    profileLoading,
+    user,
+    activeProfileId,
+  ]);
 
-  const visibleCollection = user
-    ? collection
-    : [];
+  const visibleCollection =
+    user && activeProfile
+      ? collection
+      : [];
 
   const loading =
     authLoading ||
-    (user !== null && collectionLoading);
+    profileLoading ||
+    (!!user &&
+      !!activeProfile &&
+      collectionLoading);
 
   function isCollected(pokemonId: number) {
     return visibleCollection.some(
       (entry) =>
-        entry.species.externalId === pokemonId,
+        entry.species.externalId ===
+        pokemonId,
     );
   }
 
   async function toggleCollection(
     pokemonId: number,
   ) {
-    if (!user) {
+    if (!user || !activeProfile) {
       return;
     }
 
-    if (isCollected(pokemonId)) {
-      await removeFromCollection(pokemonId);
+    const collected =
+      collection.some(
+        (entry) =>
+          entry.species.externalId ===
+          pokemonId,
+      );
+
+    if (collected) {
+      await removeFromCollection(
+        activeProfile.id,
+        pokemonId,
+      );
 
       setCollection((current) =>
         current.filter(
           (entry) =>
-            entry.species.externalId !== pokemonId,
+            entry.species.externalId !==
+            pokemonId,
         ),
       );
+    } else {
+      const entry =
+        await addToCollection(
+          activeProfile.id,
+          pokemonId,
+        );
 
-      return;
+      setCollection((current) => {
+        const alreadyExists =
+          current.some(
+            (currentEntry) =>
+              currentEntry.species
+                .externalId ===
+              pokemonId,
+          );
+
+        if (alreadyExists) {
+          return current;
+        }
+
+        return [...current, entry];
+      });
     }
 
-    const newEntry =
-    await addToCollection(pokemonId);
-
-    setCollection((current) => {
-    const alreadyExists = current.some(
-        (entry) =>
-        entry.species.externalId === pokemonId,
-    );
-
-    if (alreadyExists) {
-        return current;
-    }
-
-    return [newEntry, ...current];
-    });
+    await refreshActiveProfile();
   }
 
   return (

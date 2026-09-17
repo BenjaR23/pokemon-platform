@@ -124,58 +124,22 @@ export function ProfileSidebar({
             </button>
           </section>
 
-          <section className="mt-8 border-t border-zinc-800 pt-6">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-              Games
-            </h3>
+          <section className="border-t border-zinc-800 pt-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-zinc-300">
+                  Recommendation setup
+                </h3>
 
-            {activeProfile.games.length >
-            0 ? (
-              <div className="mt-3 space-y-1">
-                {activeProfile.games.map(
-                  ({ game }) => (
-                    <p
-                      key={game.externalId}
-                      className="text-sm text-zinc-200"
-                    >
-                      {formatName(
-                        game.name,
-                      )}
-                    </p>
-                  ),
-                )}
+                <p className="mt-2 text-sm text-zinc-500">
+                  Games and acquisition preferences will be configured here.
+                </p>
               </div>
-            ) : (
-              <p className="mt-3 text-sm text-zinc-500">
-                No games configured.
-              </p>
-            )}
 
-            <button
-              type="button"
-              className="mt-3 text-sm font-medium text-zinc-400 transition hover:text-zinc-100"
-            >
-              Edit
-            </button>
-          </section>
-
-          <section className="mt-8 border-t border-zinc-800 pt-6">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-              Recommendations
-            </h3>
-
-            <p className="mt-3 text-sm text-zinc-500">
-              Configure games and preferences
-              used by the recommendation
-              system.
-            </p>
-
-            <button
-              type="button"
-              className="mt-3 text-sm font-medium text-zinc-400 transition hover:text-zinc-100"
-            >
-              Configure
-            </button>
+              <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-500">
+                Coming later
+              </span>
+            </div>
           </section>
 
           <section className="mt-8 border-t border-zinc-800 pt-6">
@@ -290,15 +254,4 @@ function formatObjective(
   }
 
   return 'All Pokémon';
-}
-
-function formatName(name: string) {
-  return name
-    .split('-')
-    .map(
-      (part) =>
-        part.charAt(0).toUpperCase() +
-        part.slice(1),
-    )
-    .join(' ');
 }

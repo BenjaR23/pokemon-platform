@@ -21,6 +21,10 @@ describe('RecommendationPlanService', () => {
     pokemonSpecies: {
       findMany: jest.fn(),
     },
+
+    userCollection: {
+      findMany: jest.fn(),
+    },
   };
 
   const coverageService = {
@@ -33,6 +37,8 @@ describe('RecommendationPlanService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    prisma.userCollection.findMany.mockResolvedValue([]);
 
     extraGameRecommendationService.recommendExtraGames.mockResolvedValue({
       suggestedGames: [],
@@ -688,5 +694,93 @@ describe('RecommendationPlanService', () => {
     expect(
       extraGameRecommendationService.recommendExtraGames,
     ).not.toHaveBeenCalled();
+  });
+
+  it('does not recommend extra games for uncovered species that are already captured', async () => {
+    mockProfile();
+
+    prisma.collectionProfileGame.findMany.mockResolvedValue([
+      {
+        role: 'PRIMARY',
+        position: 0,
+
+        game: {
+          externalId: 10,
+          name: 'firered',
+        },
+      },
+    ]);
+
+    prisma.pokemonSpecies.findMany.mockResolvedValue([
+      {
+        id: 'species-25',
+        externalId: 25,
+        name: 'pikachu',
+      },
+
+      {
+        id: 'species-151',
+        externalId: 151,
+        name: 'mew',
+      },
+    ]);
+
+    coverageService.getGameCoverage.mockResolvedValue({
+      game: {
+        externalId: 10,
+        name: 'firered',
+      },
+
+      species: [
+        {
+          externalId: 25,
+          name: 'pikachu',
+          source: 'DIRECT',
+        },
+      ],
+    });
+
+    prisma.userCollection.findMany.mockResolvedValue([
+      {
+        species: {
+          externalId: 151,
+        },
+      },
+    ]);
+
+    const result = await service.getProfilePlan('user-1', 'profile-1');
+
+    expect(result.uncovered).toEqual([
+      {
+        externalId: 151,
+        name: 'mew',
+      },
+    ]);
+
+    expect(result.remainingUncovered).toEqual([]);
+
+    expect(prisma.userCollection.findMany).toHaveBeenCalledWith({
+      where: {
+        profileId: 'profile-1',
+
+        species: {
+          externalId: {
+            in: [151],
+          },
+        },
+      },
+
+      select: {
+        species: {
+          select: {
+            externalId: true,
+          },
+        },
+      },
+    });
+
+    expect(
+      extraGameRecommendationService.recommendExtraGames,
+    ).toHaveBeenCalledWith([], [10]);
   });
 });

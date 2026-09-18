@@ -124,64 +124,6 @@ export class ExtraGameRecommendationService {
     };
   }
 
-  async inspectCandidateGames(
-    uncoveredSpecies: MissingSpecies[],
-    configuredGameIds: number[],
-  ) {
-    const uncoveredIds = new Set(
-      uncoveredSpecies.map((species) => species.externalId),
-    );
-
-    const games = await this.prisma.game.findMany({
-      where: {
-        externalId: {
-          notIn: configuredGameIds,
-        },
-      },
-      select: {
-        externalId: true,
-        name: true,
-      },
-      orderBy: {
-        externalId: 'asc',
-      },
-    });
-
-    const candidates: Array<{
-      externalId: number;
-      name: string;
-      coverageCount: number;
-      coveredSpeciesIds: number[];
-    }> = [];
-
-    for (const game of games) {
-      const coverage = await this.coverageService.getGameCoverage(
-        game.externalId,
-      );
-
-      const coveredSpeciesIds = coverage.species
-        .filter((species) => uncoveredIds.has(species.externalId))
-        .map((species) => species.externalId)
-        .sort((a, b) => a - b);
-
-      if (coveredSpeciesIds.length === 0) {
-        continue;
-      }
-
-      candidates.push({
-        externalId: game.externalId,
-        name: game.name,
-        coverageCount: coveredSpeciesIds.length,
-        coveredSpeciesIds,
-      });
-    }
-
-    return {
-      totalCandidates: candidates.length,
-      candidates,
-    };
-  }
-
   private findBestCombination(
     candidates: CandidateGame[],
     targetSpeciesIds: Set<number>,

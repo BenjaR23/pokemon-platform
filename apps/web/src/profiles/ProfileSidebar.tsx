@@ -1,5 +1,14 @@
-import { useState } from 'react';
+import {
+  useEffect,
+  useState,
+} from 'react';
+
 import { useNavigate } from 'react-router-dom';
+
+import {
+  getRecommendationPlan,
+  type RecommendationConfiguredGame,
+} from '../recommendations/recommendations.api';
 
 import { CreateProfileModal } from './CreateProfileModal';
 import { DeleteProfileModal } from './DeleteProfileModal';
@@ -38,22 +47,102 @@ export function ProfileSidebar({
     setDeleteProfileOpen,
   ] = useState(false);
 
+  const [
+    configuredGames,
+    setConfiguredGames,
+  ] = useState<
+    RecommendationConfiguredGame[]
+  >([]);
+
+  const [
+    gamesLoading,
+    setGamesLoading,
+  ] = useState(false);
+
   const {
     profiles,
     activeProfile,
     setActiveProfileId,
   } = useProfile();
 
-  if (!open || !activeProfile) {
+  const activeProfileId =
+    activeProfile?.id ?? null;
+
+  useEffect(() => {
+    if (
+      !open ||
+      !activeProfileId
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadConfiguredGames() {
+      try {
+        setGamesLoading(true);
+
+        const plan =
+          await getRecommendationPlan(
+            activeProfileId!,
+          );
+
+        if (!cancelled) {
+          setConfiguredGames(
+            plan.configuredGames,
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setConfiguredGames([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setGamesLoading(false);
+        }
+      }
+    }
+
+    void loadConfiguredGames();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    open,
+    activeProfileId,
+  ]);
+
+  if (
+    !open ||
+    !activeProfile
+  ) {
     return null;
   }
 
   const progress =
     activeProfile.progress;
 
+  const primaryGames =
+    configuredGames.filter(
+      (game) =>
+        game.role ===
+        'PRIMARY',
+    );
+
+  const auxiliaryGames =
+    configuredGames.filter(
+      (game) =>
+        game.role ===
+        'AUXILIARY',
+    );
+
   function handleOpenRecommendations() {
     onClose();
-    navigate('/recommendations');
+
+    navigate(
+      '/recommendations',
+    );
   }
 
   return (
@@ -83,8 +172,12 @@ export function ProfileSidebar({
 
         <div className="flex-1 overflow-y-auto p-5">
           <select
-            value={activeProfile.id}
-            onChange={(event) =>
+            value={
+              activeProfile.id
+            }
+            onChange={(
+              event,
+            ) =>
               void setActiveProfileId(
                 event.target.value,
               )
@@ -94,10 +187,16 @@ export function ProfileSidebar({
             {profiles.map(
               (profile) => (
                 <option
-                  key={profile.id}
-                  value={profile.id}
+                  key={
+                    profile.id
+                  }
+                  value={
+                    profile.id
+                  }
                 >
-                  {profile.name}
+                  {
+                    profile.name
+                  }
                 </option>
               ),
             )}
@@ -110,12 +209,20 @@ export function ProfileSidebar({
 
             <div className="mt-3 flex items-end justify-between">
               <span className="text-lg font-medium text-zinc-100">
-                {progress.captured} /{' '}
-                {progress.total}
+                {
+                  progress.captured
+                }{' '}
+                /{' '}
+                {
+                  progress.total
+                }
               </span>
 
               <span className="text-sm text-zinc-400">
-                {progress.percentage}%
+                {
+                  progress.percentage
+                }
+                %
               </span>
             </div>
 
@@ -158,18 +265,46 @@ export function ProfileSidebar({
               Recommendation setup
             </h3>
 
-            <p className="mt-3 text-sm leading-6 text-zinc-400">
-              Configure primary and
-              auxiliary games for this
-              profile.
-            </p>
+            {gamesLoading ? (
+              <p className="mt-3 text-sm text-zinc-500">
+                Loading games...
+              </p>
+            ) : configuredGames.length ===
+              0 ? (
+              <p className="mt-3 text-sm leading-6 text-zinc-500">
+                No games
+                configured.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-5">
+                {primaryGames.length >
+                  0 && (
+                  <GameGroup
+                    label="Primary"
+                    games={
+                      primaryGames
+                    }
+                  />
+                )}
+
+                {auxiliaryGames.length >
+                  0 && (
+                  <GameGroup
+                    label="Auxiliary"
+                    games={
+                      auxiliaryGames
+                    }
+                  />
+                )}
+              </div>
+            )}
 
             <button
               type="button"
               onClick={
                 handleOpenRecommendations
               }
-              className="mt-4 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-800 hover:text-white"
+              className="mt-5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm font-medium text-zinc-300 transition hover:border-zinc-500 hover:bg-zinc-800 hover:text-white"
             >
               Configure
             </button>
@@ -224,33 +359,95 @@ export function ProfileSidebar({
       </aside>
 
       <CreateProfileModal
-        open={createProfileOpen}
+        open={
+          createProfileOpen
+        }
         onClose={() =>
-          setCreateProfileOpen(false)
+          setCreateProfileOpen(
+            false,
+          )
         }
       />
 
       <EditObjectiveModal
-        open={editObjectiveOpen}
+        open={
+          editObjectiveOpen
+        }
         onClose={() =>
-          setEditObjectiveOpen(false)
+          setEditObjectiveOpen(
+            false,
+          )
         }
       />
 
       <RenameProfileModal
-        open={renameProfileOpen}
+        open={
+          renameProfileOpen
+        }
         onClose={() =>
-          setRenameProfileOpen(false)
+          setRenameProfileOpen(
+            false,
+          )
         }
       />
 
       <DeleteProfileModal
-        open={deleteProfileOpen}
+        open={
+          deleteProfileOpen
+        }
         onClose={() =>
-          setDeleteProfileOpen(false)
+          setDeleteProfileOpen(
+            false,
+          )
         }
       />
     </>
+  );
+}
+
+interface GameGroupProps {
+  label: string;
+
+  games:
+    RecommendationConfiguredGame[];
+}
+
+function GameGroup({
+  label,
+  games,
+}: GameGroupProps) {
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wider text-zinc-600">
+        {label}
+      </p>
+
+      <div className="mt-2 space-y-2">
+        {games.map(
+          (
+            game,
+            index,
+          ) => (
+            <div
+              key={
+                game.externalId
+              }
+              className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-black px-3 py-2"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-900 text-xs font-medium text-zinc-500">
+                {index + 1}
+              </span>
+
+              <span className="min-w-0 truncate text-sm text-zinc-300">
+                {formatName(
+                  game.name,
+                )}
+              </span>
+            </div>
+          ),
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -260,12 +457,15 @@ function formatObjective(
       | 'ALL'
       | 'GENERATIONS'
       | 'RANGE';
+
     startPokemonNumber:
       | number
       | null;
+
     endPokemonNumber:
       | number
       | null;
+
     generations: Array<{
       generation: {
         externalId: number;
@@ -301,4 +501,19 @@ function formatObjective(
   }
 
   return 'All Pokémon';
+}
+
+function formatName(
+  value: string,
+) {
+  return value
+    .split('-')
+    .map(
+      (word) =>
+        word
+          .charAt(0)
+          .toUpperCase() +
+        word.slice(1),
+    )
+    .join(' ');
 }

@@ -14,6 +14,11 @@ import {
   updateProfileGames,
 } from '../profiles/profile-games.api';
 
+import {
+  getRecommendationPlan,
+  type RecommendationPlan,
+} from '../recommendations/recommendations.api';
+
 import { useProfile } from '../profiles/useProfile';
 
 export function RecommendationSetupPage() {
@@ -42,17 +47,48 @@ export function RecommendationSetupPage() {
     setAuxiliarySelection,
   ] = useState('');
 
-  const [isLoading, setIsLoading] =
-    useState(true);
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
 
-  const [isSaving, setIsSaving] =
-    useState(false);
+  const [
+    isSaving,
+    setIsSaving,
+  ] = useState(false);
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [
+    error,
+    setError,
+  ] = useState<string | null>(
+    null,
+  );
 
-  const [savedMessage, setSavedMessage] =
-    useState<string | null>(null);
+  const [
+    savedMessage,
+    setSavedMessage,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const [
+    recommendationPlan,
+    setRecommendationPlan,
+  ] = useState<RecommendationPlan | null>(
+    null,
+  );
+
+  const [
+    planLoading,
+    setPlanLoading,
+  ] = useState(false);
+
+  const [
+    planError,
+    setPlanError,
+  ] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     async function loadData() {
@@ -63,29 +99,42 @@ export function RecommendationSetupPage() {
       try {
         setIsLoading(true);
         setError(null);
+        setPlanError(null);
 
         const [
-          gamesData,
-          profileGames,
+          gamesResponse,
+          profileGamesResponse,
+          recommendationPlanResponse,
         ] = await Promise.all([
           getGames(),
           getProfileGames(
             activeProfile.id,
           ),
+          getRecommendationPlan(
+            activeProfile.id,
+          ),
         ]);
 
-        setGames(gamesData);
+        setGames(
+          gamesResponse,
+        );
 
         setPrimaryGameIds(
-          profileGames.primary.map(
-            (game) => game.externalId,
+          profileGamesResponse.primary.map(
+            (game) =>
+              game.externalId,
           ),
         );
 
         setAuxiliaryGameIds(
-          profileGames.auxiliary.map(
-            (game) => game.externalId,
+          profileGamesResponse.auxiliary.map(
+            (game) =>
+              game.externalId,
           ),
+        );
+
+        setRecommendationPlan(
+          recommendationPlanResponse,
         );
       } catch {
         setError(
@@ -131,8 +180,39 @@ export function RecommendationSetupPage() {
             game.externalId,
           ),
       ),
-    [games, selectedGameIds],
+    [
+      games,
+      selectedGameIds,
+    ],
   );
+
+  async function loadRecommendationPlan(
+    profileId: string,
+  ) {
+    setPlanLoading(true);
+    setPlanError(null);
+
+    try {
+      const plan =
+        await getRecommendationPlan(
+          profileId,
+        );
+
+      setRecommendationPlan(
+        plan,
+      );
+    } catch {
+      setRecommendationPlan(
+        null,
+      );
+
+      setPlanError(
+        'Could not load recommendation plan.',
+      );
+    } finally {
+      setPlanLoading(false);
+    }
+  }
 
   async function handleSave() {
     if (!activeProfile) {
@@ -150,6 +230,10 @@ export function RecommendationSetupPage() {
           primaryGameIds,
           auxiliaryGameIds,
         },
+      );
+
+      await loadRecommendationPlan(
+        activeProfile.id,
       );
 
       setSavedMessage(
@@ -173,10 +257,12 @@ export function RecommendationSetupPage() {
       primarySelection,
     );
 
-    setPrimaryGameIds((current) => [
-      ...current,
-      gameId,
-    ]);
+    setPrimaryGameIds(
+      (current) => [
+        ...current,
+        gameId,
+      ],
+    );
 
     setPrimarySelection('');
     setSavedMessage(null);
@@ -191,10 +277,12 @@ export function RecommendationSetupPage() {
       auxiliarySelection,
     );
 
-    setAuxiliaryGameIds((current) => [
-      ...current,
-      gameId,
-    ]);
+    setAuxiliaryGameIds(
+      (current) => [
+        ...current,
+        gameId,
+      ],
+    );
 
     setAuxiliarySelection('');
     setSavedMessage(null);
@@ -203,10 +291,12 @@ export function RecommendationSetupPage() {
   function removePrimaryGame(
     gameId: number,
   ) {
-    setPrimaryGameIds((current) =>
-      current.filter(
-        (id) => id !== gameId,
-      ),
+    setPrimaryGameIds(
+      (current) =>
+        current.filter(
+          (id) =>
+            id !== gameId,
+        ),
     );
 
     setSavedMessage(null);
@@ -215,10 +305,12 @@ export function RecommendationSetupPage() {
   function removeAuxiliaryGame(
     gameId: number,
   ) {
-    setAuxiliaryGameIds((current) =>
-      current.filter(
-        (id) => id !== gameId,
-      ),
+    setAuxiliaryGameIds(
+      (current) =>
+        current.filter(
+          (id) =>
+            id !== gameId,
+        ),
     );
 
     setSavedMessage(null);
@@ -284,20 +376,31 @@ export function RecommendationSetupPage() {
           <GameSection
             title="Primary games"
             description="Pokémon will be assigned to these games first, following the order shown."
-            gameIds={primaryGameIds}
-            gamesById={gamesById}
-            selection={primarySelection}
+            gameIds={
+              primaryGameIds
+            }
+            gamesById={
+              gamesById
+            }
+            selection={
+              primarySelection
+            }
             availableGames={
               availableGames
             }
             onSelectionChange={
               setPrimarySelection
             }
-            onAdd={addPrimaryGame}
+            onAdd={
+              addPrimaryGame
+            }
             onRemove={
               removePrimaryGame
             }
-            onMove={(index, direction) => {
+            onMove={(
+              index,
+              direction,
+            ) => {
               setPrimaryGameIds(
                 (current) =>
                   moveGame(
@@ -307,15 +410,21 @@ export function RecommendationSetupPage() {
                   ),
               );
 
-              setSavedMessage(null);
+              setSavedMessage(
+                null,
+              );
             }}
           />
 
           <GameSection
             title="Auxiliary games"
             description="These games are considered after all primary games, also following the order shown."
-            gameIds={auxiliaryGameIds}
-            gamesById={gamesById}
+            gameIds={
+              auxiliaryGameIds
+            }
+            gamesById={
+              gamesById
+            }
             selection={
               auxiliarySelection
             }
@@ -325,11 +434,16 @@ export function RecommendationSetupPage() {
             onSelectionChange={
               setAuxiliarySelection
             }
-            onAdd={addAuxiliaryGame}
+            onAdd={
+              addAuxiliaryGame
+            }
             onRemove={
               removeAuxiliaryGame
             }
-            onMove={(index, direction) => {
+            onMove={(
+              index,
+              direction,
+            ) => {
               setAuxiliaryGameIds(
                 (current) =>
                   moveGame(
@@ -339,30 +453,70 @@ export function RecommendationSetupPage() {
                   ),
               );
 
-              setSavedMessage(null);
+              setSavedMessage(
+                null,
+              );
             }}
           />
 
-          <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-medium text-zinc-100">
-                  Coverage
-                </h2>
+          <RecommendationPlanSection
+            plan={
+              recommendationPlan
+            }
+            isLoading={
+              planLoading
+            }
+            error={
+              planError
+            }
+            selectedGameIds={
+              selectedGameIds
+            }
+            onAddPrimary={(
+              gameId,
+            ) => {
+              if (
+                selectedGameIds.has(
+                  gameId,
+                )
+              ) {
+                return;
+              }
 
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-                  Coverage analysis and additional
-                  game recommendations will appear
-                  here once the recommendation
-                  engine is enabled.
-                </p>
-              </div>
+              setPrimaryGameIds(
+                (current) => [
+                  ...current,
+                  gameId,
+                ],
+              );
 
-              <span className="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-500">
-                Coming next
-              </span>
-            </div>
-          </section>
+              setSavedMessage(
+                null,
+              );
+            }}
+            onAddAuxiliary={(
+              gameId,
+            ) => {
+              if (
+                selectedGameIds.has(
+                  gameId,
+                )
+              ) {
+                return;
+              }
+
+              setAuxiliaryGameIds(
+                (current) => [
+                  ...current,
+                  gameId,
+                ],
+              );
+
+              setSavedMessage(
+                null,
+              );
+            }}
+          />
 
           <div className="flex justify-end">
             <button
@@ -370,7 +524,10 @@ export function RecommendationSetupPage() {
               onClick={() =>
                 void handleSave()
               }
-              disabled={isSaving}
+              disabled={
+                isSaving ||
+                planLoading
+              }
               className="cursor-pointer rounded-xl bg-zinc-100 px-5 py-3 text-sm font-medium text-black transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSaving
@@ -384,23 +541,495 @@ export function RecommendationSetupPage() {
   );
 }
 
+interface RecommendationPlanSectionProps {
+  plan:
+    | RecommendationPlan
+    | null;
+
+  isLoading: boolean;
+
+  error:
+    | string
+    | null;
+
+  selectedGameIds:
+    Set<number>;
+
+  onAddPrimary: (
+    gameId: number,
+  ) => void;
+
+  onAddAuxiliary: (
+    gameId: number,
+  ) => void;
+}
+
+function RecommendationPlanSection({
+  plan,
+  isLoading,
+  error,
+  selectedGameIds,
+  onAddPrimary,
+  onAddAuxiliary,
+}: RecommendationPlanSectionProps) {
+  const assignmentCountByGame =
+    new Map<number, number>();
+
+  if (plan) {
+    for (
+      const assignment
+      of plan.assignments
+    ) {
+      const gameId =
+        assignment.game.externalId;
+
+      assignmentCountByGame.set(
+        gameId,
+        (
+          assignmentCountByGame.get(
+            gameId,
+          ) ?? 0
+        ) + 1,
+      );
+    }
+  }
+
+  const visibleSuggestedGames =
+    plan?.suggestedGames.filter(
+      (game) =>
+        !selectedGameIds.has(
+          game.externalId,
+        ),
+    ) ?? [];
+
+  const capturedUncoveredCount =
+    plan
+      ? plan.uncovered.length -
+        plan.remainingUncovered.length
+      : 0;
+
+  return (
+    <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6">
+      <div>
+        <h2 className="text-lg font-medium text-zinc-100">
+          Recommendation plan
+        </h2>
+
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
+          Pokémon are assigned to your
+          configured games in order.
+          Additional games are suggested
+          when your current configuration
+          cannot cover the complete
+          objective.
+        </p>
+      </div>
+
+      {isLoading && (
+        <div className="mt-6 rounded-xl border border-zinc-900 bg-black px-4 py-5">
+          <p className="text-sm text-zinc-500">
+            Calculating recommendations...
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-6 rounded-xl border border-red-950 bg-red-950/20 px-4 py-4">
+          <p className="text-sm text-red-300">
+            {error}
+          </p>
+        </div>
+      )}
+
+      {!isLoading &&
+        !error &&
+        plan && (
+          <div className="mt-6 space-y-6">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <PlanMetric
+                label="Objective"
+                value={
+                  plan.objective.total
+                }
+              />
+
+              <PlanMetric
+                label="Covered"
+                value={
+                  plan.assignments.length
+                }
+              />
+
+              <PlanMetric
+                label="Uncovered"
+                value={
+                  plan.uncovered.length
+                }
+              />
+            </div>
+
+            {plan.configuredGames.length >
+              0 && (
+              <div>
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-200">
+                    Configured game coverage
+                  </h3>
+
+                  <p className="mt-1 text-sm leading-6 text-zinc-500">
+                    Pokémon are assigned to the
+                    first configured game that
+                    can obtain them.
+                  </p>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {plan.configuredGames.map(
+                    (game, index) => {
+                      const assignedCount =
+                        assignmentCountByGame.get(
+                          game.externalId,
+                        ) ?? 0;
+
+                      return (
+                        <div
+                          key={
+                            game.externalId
+                          }
+                          className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-black px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-zinc-200">
+                                {formatName(
+                                  game.name,
+                                )}
+                              </p>
+
+                              <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-500">
+                                {game.role ===
+                                'PRIMARY'
+                                  ? 'Primary'
+                                  : 'Auxiliary'}
+                              </span>
+                            </div>
+
+                            <p className="mt-2 text-sm text-zinc-500">
+                              {assignedCount}{' '}
+                              Pokémon assigned
+                            </p>
+                          </div>
+
+                          <p className="text-xs text-zinc-600">
+                            Priority{' '}
+                            {index + 1}
+                          </p>
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+              </div>
+            )}
+
+            {plan.uncovered.length ===
+              0 && (
+              <div className="rounded-xl border border-emerald-950 bg-emerald-950/20 px-4 py-4">
+                <p className="text-sm font-medium text-emerald-300">
+                  Your configured games
+                  cover the complete
+                  objective.
+                </p>
+              </div>
+            )}
+
+            {capturedUncoveredCount >
+              0 && (
+              <div className="rounded-xl border border-sky-950 bg-sky-950/20 px-4 py-4">
+                <p className="text-sm font-medium text-sky-300">
+                  {plan.remainingUncovered
+                    .length === 0
+                    ? 'No additional games are needed.'
+                    : 'Some uncovered Pokémon are already captured.'}
+                </p>
+
+                <p className="mt-1 text-sm leading-6 text-sky-400/70">
+                  {plan.remainingUncovered
+                    .length === 0
+                    ? `All ${capturedUncoveredCount} Pokémon not covered by your configured games are already in your collection, so they are excluded from extra game recommendations.`
+                    : `${capturedUncoveredCount} uncovered ${
+                        capturedUncoveredCount ===
+                        1
+                          ? 'Pokémon is'
+                          : 'Pokémon are'
+                      } already in your collection and ${
+                        capturedUncoveredCount ===
+                        1
+                          ? 'is'
+                          : 'are'
+                      } excluded from extra game recommendations.`}
+                </p>
+              </div>
+            )}
+
+            {visibleSuggestedGames.length >
+              0 && (
+              <div>
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-200">
+                    Suggested extra games
+                  </h3>
+
+                  <p className="mt-1 text-sm leading-6 text-zinc-500">
+                    These games improve
+                    coverage but are not
+                    automatically added to
+                    your profile.
+                  </p>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {visibleSuggestedGames.map(
+                    (
+                      game,
+                      index,
+                    ) => (
+                      <SuggestedGameCard
+                        key={
+                          game.externalId
+                        }
+                        game={
+                          game
+                        }
+                        index={
+                          index
+                        }
+                        onAddPrimary={
+                          onAddPrimary
+                        }
+                        onAddAuxiliary={
+                          onAddAuxiliary
+                        }
+                      />
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
+
+            {plan.remainingUncovered
+              .length > 0 &&
+              visibleSuggestedGames.length ===
+                0 && (
+                <div className="rounded-xl border border-zinc-800 bg-black px-4 py-4">
+                  <p className="text-sm text-zinc-400">
+                    No additional game
+                    recommendations are
+                    available for the
+                    remaining uncovered
+                    Pokémon.
+                  </p>
+                </div>
+            )}
+
+            {plan.stillUncovered.length >
+              0 && (
+              <div className="rounded-xl border border-amber-950 bg-amber-950/20 px-4 py-4">
+                <p className="text-sm font-medium text-amber-300">
+                  Still unavailable
+                </p>
+
+                <p className="mt-1 text-sm leading-6 text-amber-400/70">
+                  {
+                    plan.stillUncovered
+                      .length
+                  }{' '}
+                  Pokémon could not be
+                  covered by any available
+                  game.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+    </section>
+  );
+}
+
+interface SuggestedGameCardProps {
+  game:
+    RecommendationPlan['suggestedGames'][number];
+
+  index: number;
+
+  onAddPrimary: (
+    gameId: number,
+  ) => void;
+
+  onAddAuxiliary: (
+    gameId: number,
+  ) => void;
+}
+
+function SuggestedGameCard({
+  game,
+  index,
+  onAddPrimary,
+  onAddAuxiliary,
+}: SuggestedGameCardProps) {
+  const [
+    isExpanded,
+    setIsExpanded,
+  ] = useState(false);
+
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-black px-4 py-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-zinc-200">
+              {formatName(
+                game.name,
+              )}
+            </p>
+
+            <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-500">
+              Suggested
+            </span>
+          </div>
+
+          <p className="mt-2 text-sm text-zinc-500">
+            Covers{' '}
+            {
+              game.coveredSpecies
+                .length
+            }{' '}
+            remaining Pokémon
+          </p>
+
+          <p className="mt-1 text-xs text-zinc-700">
+            Extra game{' '}
+            {index + 1}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              setIsExpanded(
+                (current) =>
+                  !current,
+              )
+            }
+            className="cursor-pointer rounded-lg border border-zinc-800 bg-black px-3 py-2 text-sm font-medium text-zinc-400 transition hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200"
+          >
+            {isExpanded
+              ? 'Hide Pokémon'
+              : 'View Pokémon'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              onAddPrimary(
+                game.externalId,
+              )
+            }
+            className="cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
+          >
+            Add as Primary
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              onAddAuxiliary(
+                game.externalId,
+              )
+            }
+            className="cursor-pointer rounded-lg border border-zinc-800 bg-black px-3 py-2 text-sm font-medium text-zinc-400 transition hover:border-zinc-700 hover:bg-zinc-900 hover:text-zinc-200"
+          >
+            Add as Auxiliary
+          </button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="mt-4 border-t border-zinc-900 pt-4">
+          <div className="flex flex-wrap gap-2">
+            {game.coveredSpecies.map(
+              (species) => (
+                <span
+                  key={
+                    species.externalId
+                  }
+                  className="rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-xs text-zinc-400"
+                >
+                  #
+                  {
+                    species.externalId
+                  }{' '}
+                  {formatName(
+                    species.name,
+                  )}
+                </span>
+              ),
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface PlanMetricProps {
+  label: string;
+  value: number;
+}
+
+function PlanMetric({
+  label,
+  value,
+}: PlanMetricProps) {
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-black px-4 py-4">
+      <p className="text-xs font-medium uppercase tracking-wider text-zinc-600">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-semibold tracking-tight text-zinc-100">
+        {value}
+      </p>
+    </div>
+  );
+}
+
 interface GameSectionProps {
   title: string;
   description: string;
   gameIds: number[];
+
   gamesById: Map<
     number,
     GameOption
   >;
-  availableGames: GameOption[];
+
+  availableGames:
+    GameOption[];
+
   selection: string;
+
   onSelectionChange: (
     value: string,
   ) => void;
+
   onAdd: () => void;
+
   onRemove: (
     gameId: number,
   ) => void;
+
   onMove: (
     index: number,
     direction: -1 | 1,
@@ -438,9 +1067,14 @@ function GameSection({
           </p>
         ) : (
           gameIds.map(
-            (gameId, index) => {
+            (
+              gameId,
+              index,
+            ) => {
               const game =
-                gamesById.get(gameId);
+                gamesById.get(
+                  gameId,
+                );
 
               if (!game) {
                 return null;
@@ -448,7 +1082,9 @@ function GameSection({
 
               return (
                 <div
-                  key={gameId}
+                  key={
+                    gameId
+                  }
                   className="flex flex-col gap-3 rounded-xl border border-zinc-800 bg-black px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
@@ -477,7 +1113,8 @@ function GameSection({
                         )
                       }
                       disabled={
-                        index === 0
+                        index ===
+                        0
                       }
                       aria-label={`Move ${game.name} up`}
                       className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-30"
@@ -526,8 +1163,12 @@ function GameSection({
 
       <div className="mt-5 flex flex-col gap-2 sm:flex-row">
         <select
-          value={selection}
-          onChange={(event) =>
+          value={
+            selection
+          }
+          onChange={(
+            event,
+          ) =>
             onSelectionChange(
               event.target.value,
             )
@@ -563,8 +1204,12 @@ function GameSection({
 
         <button
           type="button"
-          onClick={onAdd}
-          disabled={!selection}
+          onClick={
+            onAdd
+          }
+          disabled={
+            !selection
+          }
           className="cursor-pointer rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Add game
@@ -584,12 +1229,15 @@ function moveGame(
 
   if (
     newIndex < 0 ||
-    newIndex >= gameIds.length
+    newIndex >=
+      gameIds.length
   ) {
     return gameIds;
   }
 
-  const updated = [...gameIds];
+  const updated = [
+    ...gameIds,
+  ];
 
   [
     updated[index],
@@ -602,12 +1250,17 @@ function moveGame(
   return updated;
 }
 
-function formatName(value: string) {
+function formatName(
+  value: string,
+) {
+
   return value
     .split('-')
     .map(
       (word) =>
-        word.charAt(0).toUpperCase() +
+        word
+          .charAt(0)
+          .toUpperCase() +
         word.slice(1),
     )
     .join(' ');

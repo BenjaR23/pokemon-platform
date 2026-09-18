@@ -24,11 +24,13 @@ export class RecommendationPlanService {
         id: profileId,
         userId,
       },
+
       select: {
         id: true,
         objectiveMode: true,
         startPokemonNumber: true,
         endPokemonNumber: true,
+
         generations: {
           select: {
             generation: {
@@ -49,6 +51,7 @@ export class RecommendationPlanService {
       where: {
         profileId,
       },
+
       include: {
         game: {
           select: {
@@ -57,6 +60,7 @@ export class RecommendationPlanService {
           },
         },
       },
+
       orderBy: {
         position: 'asc',
       },
@@ -83,12 +87,14 @@ export class RecommendationPlanService {
         externalId: number;
         name: string;
       };
+
       game: {
         externalId: number;
         name: string;
         role: 'PRIMARY' | 'AUXILIARY';
         position: number;
       };
+
       source: 'DIRECT' | 'EVOLUTION';
     }> = [];
 
@@ -113,12 +119,17 @@ export class RecommendationPlanService {
             externalId: pokemon.externalId,
             name: pokemon.name,
           },
+
           game: {
             externalId: profileGame.game.externalId,
+
             name: profileGame.game.name,
+
             role: profileGame.role,
+
             position: profileGame.position,
           },
+
           source: covered.source,
         });
 
@@ -132,8 +143,40 @@ export class RecommendationPlanService {
       .sort((a, b) => a.externalId - b.externalId)
       .map((species) => ({
         externalId: species.externalId,
+
         name: species.name,
       }));
+
+    const capturedUncoveredSpecies =
+      uncovered.length > 0
+        ? await this.prisma.userCollection.findMany({
+            where: {
+              profileId,
+
+              species: {
+                externalId: {
+                  in: uncovered.map((species) => species.externalId),
+                },
+              },
+            },
+
+            select: {
+              species: {
+                select: {
+                  externalId: true,
+                },
+              },
+            },
+          })
+        : [];
+
+    const capturedSpeciesIds = new Set(
+      capturedUncoveredSpecies.map((entry) => entry.species.externalId),
+    );
+
+    const remainingUncovered = uncovered.filter(
+      (species) => !capturedSpeciesIds.has(species.externalId),
+    );
 
     const configuredGameIds = orderedGames.map(
       (profileGame) => profileGame.game.externalId,
@@ -141,7 +184,7 @@ export class RecommendationPlanService {
 
     const extraRecommendations =
       await this.extraGameRecommendationService.recommendExtraGames(
-        uncovered,
+        remainingUncovered,
         configuredGameIds,
       );
 
@@ -152,13 +195,19 @@ export class RecommendationPlanService {
 
       configuredGames: orderedGames.map((profileGame) => ({
         externalId: profileGame.game.externalId,
+
         name: profileGame.game.name,
+
         role: profileGame.role,
+
         position: profileGame.position,
       })),
 
       assignments,
+
       uncovered,
+
+      remainingUncovered,
 
       suggestedGames: extraRecommendations.suggestedGames,
 
@@ -168,8 +217,11 @@ export class RecommendationPlanService {
 
   private async getObjectiveSpecies(profile: {
     objectiveMode: 'ALL' | 'GENERATIONS' | 'RANGE';
+
     startPokemonNumber: number | null;
+
     endPokemonNumber: number | null;
+
     generations: Array<{
       generation: {
         externalId: number;
@@ -189,11 +241,13 @@ export class RecommendationPlanService {
             },
           },
         },
+
         select: {
           id: true,
           externalId: true,
           name: true,
         },
+
         orderBy: {
           externalId: 'asc',
         },
@@ -209,14 +263,17 @@ export class RecommendationPlanService {
         where: {
           externalId: {
             gte: profile.startPokemonNumber,
+
             lte: profile.endPokemonNumber,
           },
         },
+
         select: {
           id: true,
           externalId: true,
           name: true,
         },
+
         orderBy: {
           externalId: 'asc',
         },
@@ -229,6 +286,7 @@ export class RecommendationPlanService {
         externalId: true,
         name: true,
       },
+
       orderBy: {
         externalId: 'asc',
       },

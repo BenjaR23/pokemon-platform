@@ -3,23 +3,31 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 
+import { GetPokemonQueryDto } from '../pokemon/dto/get-pokemon-query.dto.js';
+
 import { RecommendationCoverageService } from './recommendation-coverage.service';
+
 import { RecommendationPlanService } from './recommendation-plan.service';
-import { ExtraGameRecommendationService } from './extra-game-recommendation.service';
+
+import { RecommendationPokedexService } from './recommendation-pokedex.service';
 
 @Controller('recommendations')
 export class RecommendationsController {
   constructor(
     private readonly recommendationCoverageService: RecommendationCoverageService,
+
     private readonly recommendationPlanService: RecommendationPlanService,
-    private readonly extraGameRecommendationService: ExtraGameRecommendationService,
+
+    private readonly recommendationPokedexService: RecommendationPokedexService,
   ) {}
 
   @Get('coverage/games/:gameId')
@@ -33,28 +41,31 @@ export class RecommendationsController {
   @Get('profiles/:profileId/plan')
   @UseGuards(AuthGuard)
   getProfilePlan(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('profileId') profileId: string,
+    @CurrentUser()
+    user: AuthenticatedUser,
+
+    @Param('profileId')
+    profileId: string,
   ) {
     return this.recommendationPlanService.getProfilePlan(user.id, profileId);
   }
 
-  @Get('profiles/:profileId/extra-candidates')
+  @Get('profiles/:profileId/pokedex')
   @UseGuards(AuthGuard)
-  async getExtraCandidates(
+  getProfilePokedex(
     @CurrentUser()
     user: AuthenticatedUser,
+
     @Param('profileId')
     profileId: string,
+
+    @Query()
+    query: GetPokemonQueryDto,
   ) {
-    const plan = await this.recommendationPlanService.getProfilePlan(
+    return this.recommendationPokedexService.getProfilePokedex(
       user.id,
       profileId,
-    );
-
-    return this.extraGameRecommendationService.inspectCandidateGames(
-      plan.uncovered,
-      plan.configuredGames.map((game) => game.externalId),
+      query,
     );
   }
 }

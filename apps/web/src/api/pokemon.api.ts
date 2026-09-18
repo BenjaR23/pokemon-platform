@@ -17,23 +17,35 @@ export interface GetPokemonParams {
   maxPokemonId?: number;
 }
 
-export async function getPokemon(
+export function createPokemonSearchParams(
   params: GetPokemonParams,
-): Promise<PokemonListResponse> {
-  const searchParams = new URLSearchParams({
-    page: params.page.toString(),
-    pageSize: (params.pageSize ?? 24).toString(),
-  });
+) {
+  const searchParams =
+    new URLSearchParams({
+      page: params.page.toString(),
+      pageSize: (
+        params.pageSize ?? 24
+      ).toString(),
+    });
 
   if (params.search) {
-    searchParams.set('search', params.search);
+    searchParams.set(
+      'search',
+      params.search,
+    );
   }
 
   if (params.type) {
-    searchParams.set('type', params.type);
+    searchParams.set(
+      'type',
+      params.type,
+    );
   }
 
-  if (params.generation !== undefined) {
+  if (
+    params.generation !==
+    undefined
+  ) {
     searchParams.set(
       'generation',
       params.generation.toString(),
@@ -42,34 +54,56 @@ export async function getPokemon(
 
   if (
     params.generationIds &&
-    params.generationIds.length > 0
+    params.generationIds.length >
+      0
   ) {
     searchParams.set(
       'generationIds',
-      params.generationIds.join(','),
+      params.generationIds.join(
+        ',',
+      ),
     );
   }
 
-  if (params.minPokemonId !== undefined) {
+  if (
+    params.minPokemonId !==
+    undefined
+  ) {
     searchParams.set(
       'minPokemonId',
       params.minPokemonId.toString(),
     );
   }
 
-  if (params.maxPokemonId !== undefined) {
+  if (
+    params.maxPokemonId !==
+    undefined
+  ) {
     searchParams.set(
       'maxPokemonId',
       params.maxPokemonId.toString(),
     );
   }
 
+  return searchParams;
+}
+
+export async function getPokemon(
+  params: GetPokemonParams,
+): Promise<PokemonListResponse> {
+  const searchParams =
+    createPokemonSearchParams(
+      params,
+    );
+
   const response = await fetch(
     `${API_URL}/pokemon?${searchParams.toString()}`,
   );
 
   if (!response.ok) {
-    throw new Error('Failed to fetch Pokemon');
+    throw new Error(
+      'Failed to fetch Pokemon',
+    );
   }
 
   return response.json() as Promise<PokemonListResponse>;

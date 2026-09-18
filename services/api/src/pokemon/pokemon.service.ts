@@ -654,10 +654,12 @@ export class PokemonService {
     generationIds?: number[],
     minPokemonId?: number,
     maxPokemonId?: number,
+    orderedPokemonIds?: number[],
   ) {
     const skip = (page - 1) * pageSize;
 
     const trimmedSearch = search?.trim();
+
     const trimmedType = type?.trim();
 
     if (
@@ -696,6 +698,7 @@ export class PokemonService {
         varieties: {
           some: {
             isDefault: true,
+
             types: {
               some: {
                 type: {
@@ -729,8 +732,17 @@ export class PokemonService {
     if (minPokemonId !== undefined || maxPokemonId !== undefined) {
       filters.push({
         externalId: {
-          ...(minPokemonId !== undefined ? { gte: minPokemonId } : {}),
-          ...(maxPokemonId !== undefined ? { lte: maxPokemonId } : {}),
+          ...(minPokemonId !== undefined
+            ? {
+                gte: minPokemonId,
+              }
+            : {}),
+
+          ...(maxPokemonId !== undefined
+            ? {
+                lte: maxPokemonId,
+              }
+            : {}),
         },
       });
     }
@@ -742,53 +754,140 @@ export class PokemonService {
           }
         : {};
 
-    const [species, total] = await Promise.all([
-      this.prisma.pokemonSpecies.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: {
-          externalId: 'asc',
+    const speciesInclude = {
+      generation: {
+        select: {
+          externalId: true,
         },
-        include: {
-          generation: {
-            select: {
-              externalId: true,
+      },
+
+      varieties: {
+        where: {
+          isDefault: true,
+        },
+
+        take: 1,
+
+        select: {
+          types: {
+            orderBy: {
+              slot: 'asc' as const,
             },
-          },
-          varieties: {
-            where: {
-              isDefault: true,
-            },
-            take: 1,
+
             select: {
-              types: {
-                orderBy: {
-                  slot: 'asc',
-                },
+              type: {
                 select: {
-                  type: {
-                    select: {
-                      name: true,
-                    },
-                  },
+                  name: true,
                 },
               },
             },
           },
         },
-      }),
+      },
+    } satisfies Prisma.PokemonSpeciesInclude;
 
-      this.prisma.pokemonSpecies.count({
+    type PokemonListSpecies = Prisma.PokemonSpeciesGetPayload<{
+      include: typeof speciesInclude;
+    }>;
+
+    let species: PokemonListSpecies[];
+    let total: number;
+
+    if (orderedPokemonIds === undefined) {
+      [species, total] = await Promise.all([
+        this.prisma.pokemonSpecies.findMany({
+          where,
+          skip,
+          take: pageSize,
+
+          orderBy: {
+            externalId: 'asc',
+          },
+
+          include: speciesInclude,
+        }),
+
+        this.prisma.pokemonSpecies.count({
+          where,
+        }),
+      ]);
+    } else {
+      const matchingSpecies = await this.prisma.pokemonSpecies.findMany({
         where,
-      }),
-    ]);
+
+        select: {
+          externalId: true,
+        },
+
+        orderBy: {
+          externalId: 'asc',
+        },
+      });
+
+      const recommendationPosition = new Map<number, number>(
+        orderedPokemonIds.map((pokemonId, index) => [pokemonId, index]),
+      );
+
+      const sortedPokemonIds = matchingSpecies
+        .map((pokemon) => pokemon.externalId)
+        .sort((firstId, secondId) => {
+          const firstPosition = recommendationPosition.get(firstId);
+
+          const secondPosition = recommendationPosition.get(secondId);
+
+          if (firstPosition !== undefined && secondPosition !== undefined) {
+            return firstPosition - secondPosition;
+          }
+
+          if (firstPosition !== undefined) {
+            return -1;
+          }
+
+          if (secondPosition !== undefined) {
+            return 1;
+          }
+
+          return firstId - secondId;
+        });
+
+      total = sortedPokemonIds.length;
+
+      const pagePokemonIds = sortedPokemonIds.slice(skip, skip + pageSize);
+
+      if (pagePokemonIds.length === 0) {
+        species = [];
+      } else {
+        species = await this.prisma.pokemonSpecies.findMany({
+          where: {
+            externalId: {
+              in: pagePokemonIds,
+            },
+          },
+
+          include: speciesInclude,
+        });
+
+        const pagePosition = new Map<number, number>(
+          pagePokemonIds.map((pokemonId, index) => [pokemonId, index]),
+        );
+
+        species.sort(
+          (firstPokemon, secondPokemon) =>
+            (pagePosition.get(firstPokemon.externalId) ?? 0) -
+            (pagePosition.get(secondPokemon.externalId) ?? 0),
+        );
+      }
+    }
 
     const items = species.map((pokemon) => ({
       id: pokemon.externalId,
+
       name: pokemon.name,
+
       generation: pokemon.generation?.externalId ?? null,
+
       image: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemon.externalId}.png`,
+
       types:
         pokemon.varieties[0]?.types.map(
           (pokemonType) => pokemonType.type.name,
@@ -797,10 +896,12 @@ export class PokemonService {
 
     return {
       items,
+
       pagination: {
         page,
         pageSize,
         total,
+
         totalPages: Math.ceil(total / pageSize),
       },
     };

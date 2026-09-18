@@ -13,6 +13,12 @@ interface CoveredSpecies {
   source: CoverageSource;
 }
 
+interface EvolutionTarget {
+  id: string;
+  externalId: number;
+  name: string;
+}
+
 @Injectable()
 export class RecommendationCoverageService {
   constructor(private readonly prisma: PrismaService) {}
@@ -67,6 +73,33 @@ export class RecommendationCoverageService {
       },
     });
 
+    const evolutions = await this.prisma.evolution.findMany({
+      where: {
+        toSpecies: {
+          generation: {
+            externalId: {
+              lte: game.versionGroup.generation.externalId,
+            },
+          },
+        },
+      },
+      select: {
+        fromSpeciesId: true,
+        toSpecies: {
+          select: {
+            id: true,
+            externalId: true,
+            name: true,
+          },
+        },
+        rules: {
+          select: {
+            versionGroupId: true,
+          },
+        },
+      },
+    });
+
     const coveredSpecies = new Map<string, CoveredSpecies>();
 
     for (const acquisition of directAcquisitions) {
@@ -80,11 +113,30 @@ export class RecommendationCoverageService {
       });
     }
 
-    await this.expandEvolutionCoverage(
-      coveredSpecies,
-      game.versionGroupId,
-      game.versionGroup.generation.externalId,
-    );
+    const evolutionGraph = new Map<string, EvolutionTarget[]>();
+
+    for (const evolution of evolutions) {
+      if (
+        !this.isEvolutionAvailableInVersionGroup(
+          evolution.rules,
+          game.versionGroupId,
+        )
+      ) {
+        continue;
+      }
+
+      const targets = evolutionGraph.get(evolution.fromSpeciesId) ?? [];
+
+      targets.push({
+        id: evolution.toSpecies.id,
+        externalId: evolution.toSpecies.externalId,
+        name: evolution.toSpecies.name,
+      });
+
+      evolutionGraph.set(evolution.fromSpeciesId, targets);
+    }
+
+    this.expandEvolutionCoverage(coveredSpecies, evolutionGraph);
 
     const species = Array.from(coveredSpecies.values())
       .sort((a, b) => a.externalId - b.externalId)
@@ -103,10 +155,9 @@ export class RecommendationCoverageService {
     };
   }
 
-  private async expandEvolutionCoverage(
+  private expandEvolutionCoverage(
     coveredSpecies: Map<string, CoveredSpecies>,
-    versionGroupId: string,
-    gameGeneration: number,
+    evolutionGraph: Map<string, EvolutionTarget[]>,
   ) {
     const processedSpeciesIds = new Set<string>();
 
@@ -121,52 +172,9 @@ export class RecommendationCoverageService {
 
       processedSpeciesIds.add(speciesId);
 
-      const evolutions = await this.prisma.evolution.findMany({
-        where: {
-          fromSpeciesId: speciesId,
-        },
-        select: {
-          toSpecies: {
-            select: {
-              id: true,
-              externalId: true,
-              name: true,
-              generation: {
-                select: {
-                  externalId: true,
-                },
-              },
-            },
-          },
-          rules: {
-            select: {
-              versionGroupId: true,
-            },
-          },
-        },
-      });
+      const targets = evolutionGraph.get(speciesId) ?? [];
 
-      for (const evolution of evolutions) {
-        const targetSpecies = evolution.toSpecies;
-
-        const targetGeneration = targetSpecies.generation?.externalId;
-
-        if (
-          targetGeneration !== undefined &&
-          targetGeneration > gameGeneration
-        ) {
-          continue;
-        }
-
-        if (
-          !this.isEvolutionAvailableInVersionGroup(
-            evolution.rules,
-            versionGroupId,
-          )
-        ) {
-          continue;
-        }
-
+      for (const targetSpecies of targets) {
         if (coveredSpecies.has(targetSpecies.id)) {
           continue;
         }

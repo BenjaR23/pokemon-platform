@@ -12,12 +12,14 @@ import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 
 import { RecommendationCoverageService } from './recommendation-coverage.service';
 import { RecommendationPlanService } from './recommendation-plan.service';
+import { ExtraGameRecommendationService } from './extra-game-recommendation.service';
 
 @Controller('recommendations')
 export class RecommendationsController {
   constructor(
     private readonly recommendationCoverageService: RecommendationCoverageService,
     private readonly recommendationPlanService: RecommendationPlanService,
+    private readonly extraGameRecommendationService: ExtraGameRecommendationService,
   ) {}
 
   @Get('coverage/games/:gameId')
@@ -35,5 +37,24 @@ export class RecommendationsController {
     @Param('profileId') profileId: string,
   ) {
     return this.recommendationPlanService.getProfilePlan(user.id, profileId);
+  }
+
+  @Get('profiles/:profileId/extra-candidates')
+  @UseGuards(AuthGuard)
+  async getExtraCandidates(
+    @CurrentUser()
+    user: AuthenticatedUser,
+    @Param('profileId')
+    profileId: string,
+  ) {
+    const plan = await this.recommendationPlanService.getProfilePlan(
+      user.id,
+      profileId,
+    );
+
+    return this.extraGameRecommendationService.inspectCandidateGames(
+      plan.uncovered,
+      plan.configuredGames.map((game) => game.externalId),
+    );
   }
 }

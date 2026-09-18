@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { ExtraGameRecommendationService } from './extra-game-recommendation.service';
 import { RecommendationCoverageService } from './recommendation-coverage.service';
 import { RecommendationPlanService } from './recommendation-plan.service';
 
@@ -26,19 +27,35 @@ describe('RecommendationPlanService', () => {
     getGameCoverage: jest.fn(),
   };
 
+  const extraGameRecommendationService = {
+    recommendExtraGames: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    extraGameRecommendationService.recommendExtraGames.mockResolvedValue({
+      suggestedGames: [],
+      stillUncovered: [],
+    });
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         RecommendationPlanService,
+
         {
           provide: PrismaService,
           useValue: prisma,
         },
+
         {
           provide: RecommendationCoverageService,
           useValue: coverageService,
+        },
+
+        {
+          provide: ExtraGameRecommendationService,
+          useValue: extraGameRecommendationService,
         },
       ],
     }).compile();
@@ -78,6 +95,7 @@ describe('RecommendationPlanService', () => {
           name: 'leafgreen',
         },
       },
+
       {
         role: 'PRIMARY',
         position: 1,
@@ -86,6 +104,7 @@ describe('RecommendationPlanService', () => {
           name: 'emerald',
         },
       },
+
       {
         role: 'PRIMARY',
         position: 0,
@@ -104,11 +123,13 @@ describe('RecommendationPlanService', () => {
         externalId: 25,
         name: 'pikachu',
       },
+
       {
         id: 'species-37',
         externalId: 37,
         name: 'vulpix',
       },
+
       {
         id: 'species-151',
         externalId: 151,
@@ -173,12 +194,14 @@ describe('RecommendationPlanService', () => {
         externalId: 25,
         name: 'pikachu',
       },
+
       game: {
         externalId: 10,
         name: 'firered',
         role: 'PRIMARY',
         position: 0,
       },
+
       source: 'DIRECT',
     });
 
@@ -204,6 +227,7 @@ describe('RecommendationPlanService', () => {
               externalId: 11,
               name: 'leafgreen',
             },
+
             species: [
               {
                 externalId: 37,
@@ -231,12 +255,14 @@ describe('RecommendationPlanService', () => {
         externalId: 37,
         name: 'vulpix',
       },
+
       game: {
         externalId: 11,
         name: 'leafgreen',
         role: 'AUXILIARY',
         position: 0,
       },
+
       source: 'DIRECT',
     });
 
@@ -278,6 +304,26 @@ describe('RecommendationPlanService', () => {
         name: 'mew',
       },
     ]);
+
+    expect(
+      extraGameRecommendationService.recommendExtraGames,
+    ).toHaveBeenCalledWith(
+      [
+        {
+          externalId: 25,
+          name: 'pikachu',
+        },
+        {
+          externalId: 37,
+          name: 'vulpix',
+        },
+        {
+          externalId: 151,
+          name: 'mew',
+        },
+      ],
+      [10, 9, 11],
+    );
   });
 
   it('preserves evolution as assignment source', async () => {
@@ -300,6 +346,7 @@ describe('RecommendationPlanService', () => {
               externalId: 10,
               name: 'firered',
             },
+
             species: [
               {
                 externalId: 3,
@@ -328,12 +375,14 @@ describe('RecommendationPlanService', () => {
           externalId: 3,
           name: 'venusaur',
         },
+
         game: {
           externalId: 10,
           name: 'firered',
           role: 'PRIMARY',
           position: 0,
         },
+
         source: 'EVOLUTION',
       },
     ]);
@@ -356,6 +405,7 @@ describe('RecommendationPlanService', () => {
         externalId: true,
         name: true,
       },
+
       orderBy: {
         externalId: 'asc',
       },
@@ -365,12 +415,14 @@ describe('RecommendationPlanService', () => {
   it('loads species from selected generations for a GENERATIONS objective', async () => {
     mockProfile({
       objectiveMode: 'GENERATIONS',
+
       generations: [
         {
           generation: {
             externalId: 1,
           },
         },
+
         {
           generation: {
             externalId: 2,
@@ -393,11 +445,13 @@ describe('RecommendationPlanService', () => {
           },
         },
       },
+
       select: {
         id: true,
         externalId: true,
         name: true,
       },
+
       orderBy: {
         externalId: 'asc',
       },
@@ -407,7 +461,9 @@ describe('RecommendationPlanService', () => {
   it('loads species inside a RANGE objective', async () => {
     mockProfile({
       objectiveMode: 'RANGE',
+
       startPokemonNumber: 1,
+
       endPokemonNumber: 151,
     });
 
@@ -424,11 +480,13 @@ describe('RecommendationPlanService', () => {
           lte: 151,
         },
       },
+
       select: {
         id: true,
         externalId: true,
         name: true,
       },
+
       orderBy: {
         externalId: 'asc',
       },
@@ -458,12 +516,14 @@ describe('RecommendationPlanService', () => {
         role: 'PRIMARY',
         position: 0,
       },
+
       {
         externalId: 9,
         name: 'emerald',
         role: 'PRIMARY',
         position: 1,
       },
+
       {
         externalId: 11,
         name: 'leafgreen',
@@ -471,6 +531,145 @@ describe('RecommendationPlanService', () => {
         position: 0,
       },
     ]);
+  });
+
+  it('recommends extra games for species not covered by configured games', async () => {
+    mockProfile();
+
+    prisma.collectionProfileGame.findMany.mockResolvedValue([
+      {
+        role: 'PRIMARY',
+        position: 0,
+        game: {
+          externalId: 10,
+          name: 'firered',
+        },
+      },
+
+      {
+        role: 'AUXILIARY',
+        position: 0,
+        game: {
+          externalId: 11,
+          name: 'leafgreen',
+        },
+      },
+    ]);
+
+    prisma.pokemonSpecies.findMany.mockResolvedValue([
+      {
+        id: 'species-151',
+        externalId: 151,
+        name: 'mew',
+      },
+    ]);
+
+    coverageService.getGameCoverage.mockResolvedValue({
+      game: {
+        externalId: 10,
+        name: 'game',
+      },
+
+      species: [],
+    });
+
+    extraGameRecommendationService.recommendExtraGames.mockResolvedValue({
+      suggestedGames: [
+        {
+          externalId: 9,
+          name: 'emerald',
+
+          coveredSpecies: [
+            {
+              externalId: 151,
+              name: 'mew',
+            },
+          ],
+        },
+      ],
+
+      stillUncovered: [],
+    });
+
+    const result = await service.getProfilePlan('user-1', 'profile-1');
+
+    expect(
+      extraGameRecommendationService.recommendExtraGames,
+    ).toHaveBeenCalledWith(
+      [
+        {
+          externalId: 151,
+          name: 'mew',
+        },
+      ],
+      [10, 11],
+    );
+
+    expect(result.suggestedGames).toEqual([
+      {
+        externalId: 9,
+        name: 'emerald',
+
+        coveredSpecies: [
+          {
+            externalId: 151,
+            name: 'mew',
+          },
+        ],
+      },
+    ]);
+
+    expect(result.stillUncovered).toEqual([]);
+  });
+
+  it('returns no extra suggestions when configured games cover the entire objective', async () => {
+    mockProfile();
+
+    prisma.collectionProfileGame.findMany.mockResolvedValue([
+      {
+        role: 'PRIMARY',
+        position: 0,
+        game: {
+          externalId: 10,
+          name: 'firered',
+        },
+      },
+    ]);
+
+    prisma.pokemonSpecies.findMany.mockResolvedValue([
+      {
+        id: 'species-25',
+        externalId: 25,
+        name: 'pikachu',
+      },
+    ]);
+
+    coverageService.getGameCoverage.mockResolvedValue({
+      game: {
+        externalId: 10,
+        name: 'firered',
+      },
+
+      species: [
+        {
+          externalId: 25,
+          name: 'pikachu',
+          source: 'DIRECT',
+        },
+      ],
+    });
+
+    const result = await service.getProfilePlan('user-1', 'profile-1');
+
+    expect(
+      extraGameRecommendationService.recommendExtraGames,
+    ).toHaveBeenCalledWith([], [10]);
+
+    expect(result.uncovered).toEqual([]);
+
+    expect(result.suggestedGames).toEqual([]);
+
+    expect(result.stillUncovered).toEqual([]);
   });
 
   it('throws when profile is not accessible by the user', async () => {
@@ -485,5 +684,9 @@ describe('RecommendationPlanService', () => {
     expect(prisma.pokemonSpecies.findMany).not.toHaveBeenCalled();
 
     expect(coverageService.getGameCoverage).not.toHaveBeenCalled();
+
+    expect(
+      extraGameRecommendationService.recommendExtraGames,
+    ).not.toHaveBeenCalled();
   });
 });

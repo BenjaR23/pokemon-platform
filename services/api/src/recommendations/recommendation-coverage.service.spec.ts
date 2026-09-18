@@ -51,19 +51,28 @@ describe('RecommendationCoverageService', () => {
     });
   }
 
-  function species(
-    id: string,
+  function evolution(
+    fromSpeciesId: string,
+    toSpeciesId: string,
     externalId: number,
     name: string,
-    generation: number,
+    versionGroupId: string | null = null,
   ) {
     return {
-      id,
-      externalId,
-      name,
-      generation: {
-        externalId: generation,
+      fromSpeciesId,
+      toSpecies: {
+        id: toSpeciesId,
+        externalId,
+        name,
       },
+      rules:
+        versionGroupId === null
+          ? []
+          : [
+              {
+                versionGroupId,
+              },
+            ],
     };
   }
 
@@ -148,14 +157,9 @@ describe('RecommendationCoverageService', () => {
       },
     ]);
 
-    prisma.evolution.findMany
-      .mockResolvedValueOnce([
-        {
-          toSpecies: species('species-2', 2, 'ivysaur', 1),
-          rules: [],
-        },
-      ])
-      .mockResolvedValueOnce([]);
+    prisma.evolution.findMany.mockResolvedValue([
+      evolution('species-1', 'species-2', 2, 'ivysaur'),
+    ]);
 
     await expect(service.getGameCoverage(10)).resolves.toEqual({
       game: {
@@ -192,20 +196,10 @@ describe('RecommendationCoverageService', () => {
       },
     ]);
 
-    prisma.evolution.findMany
-      .mockResolvedValueOnce([
-        {
-          toSpecies: species('species-2', 2, 'ivysaur', 1),
-          rules: [],
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
-          toSpecies: species('species-3', 3, 'venusaur', 1),
-          rules: [],
-        },
-      ])
-      .mockResolvedValueOnce([]);
+    prisma.evolution.findMany.mockResolvedValue([
+      evolution('species-1', 'species-2', 2, 'ivysaur'),
+      evolution('species-2', 'species-3', 3, 'venusaur'),
+    ]);
 
     await expect(service.getGameCoverage(10)).resolves.toEqual({
       game: {
@@ -230,6 +224,8 @@ describe('RecommendationCoverageService', () => {
         },
       ],
     });
+
+    expect(prisma.evolution.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('does not duplicate directly obtainable species reached through evolution', async () => {
@@ -256,14 +252,9 @@ describe('RecommendationCoverageService', () => {
       },
     ]);
 
-    prisma.evolution.findMany
-      .mockResolvedValueOnce([
-        {
-          toSpecies: species('species-2', 2, 'ivysaur', 1),
-          rules: [],
-        },
-      ])
-      .mockResolvedValueOnce([]);
+    prisma.evolution.findMany.mockResolvedValue([
+      evolution('species-1', 'species-2', 2, 'ivysaur'),
+    ]);
 
     const result = await service.getGameCoverage(10);
 
@@ -296,18 +287,9 @@ describe('RecommendationCoverageService', () => {
       },
     ]);
 
-    prisma.evolution.findMany
-      .mockResolvedValueOnce([
-        {
-          toSpecies: species('species-2', 2, 'ivysaur', 1),
-          rules: [
-            {
-              versionGroupId: 'vg-1',
-            },
-          ],
-        },
-      ])
-      .mockResolvedValueOnce([]);
+    prisma.evolution.findMany.mockResolvedValue([
+      evolution('species-1', 'species-2', 2, 'ivysaur', 'vg-1'),
+    ]);
 
     const result = await service.getGameCoverage(10);
 
@@ -333,15 +315,8 @@ describe('RecommendationCoverageService', () => {
       },
     ]);
 
-    prisma.evolution.findMany.mockResolvedValueOnce([
-      {
-        toSpecies: species('species-2', 2, 'ivysaur', 1),
-        rules: [
-          {
-            versionGroupId: 'vg-2',
-          },
-        ],
-      },
+    prisma.evolution.findMany.mockResolvedValue([
+      evolution('species-1', 'species-2', 2, 'ivysaur', 'vg-2'),
     ]);
 
     await expect(service.getGameCoverage(10)).resolves.toEqual({
@@ -374,18 +349,21 @@ describe('RecommendationCoverageService', () => {
       },
     ]);
 
-    prisma.evolution.findMany
-      .mockResolvedValueOnce([
-        {
-          toSpecies: species('species-2', 2, 'ivysaur', 1),
-          rules: [
-            {
-              versionGroupId: null,
-            },
-          ],
+    prisma.evolution.findMany.mockResolvedValue([
+      {
+        fromSpeciesId: 'species-1',
+        toSpecies: {
+          id: 'species-2',
+          externalId: 2,
+          name: 'ivysaur',
         },
-      ])
-      .mockResolvedValueOnce([]);
+        rules: [
+          {
+            versionGroupId: null,
+          },
+        ],
+      },
+    ]);
 
     const result = await service.getGameCoverage(10);
 
@@ -396,7 +374,7 @@ describe('RecommendationCoverageService', () => {
     });
   });
 
-  it('rejects evolutions introduced after the game generation', async () => {
+  it('only loads evolutions introduced up to the game generation', async () => {
     mockGame(3, 'vg-3');
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
@@ -411,31 +389,39 @@ describe('RecommendationCoverageService', () => {
       },
     ]);
 
-    prisma.evolution.findMany.mockResolvedValueOnce([
-      {
-        toSpecies: species('annihilape', 979, 'annihilape', 9),
-        rules: [
-          {
-            versionGroupId: null,
+    prisma.evolution.findMany.mockResolvedValue([]);
+
+    await service.getGameCoverage(10);
+
+    expect(prisma.evolution.findMany).toHaveBeenCalledWith({
+      where: {
+        toSpecies: {
+          generation: {
+            externalId: {
+              lte: 3,
+            },
           },
-        ],
+        },
       },
-    ]);
-
-    const result = await service.getGameCoverage(10);
-
-    expect(result.species).toEqual([
-      {
-        externalId: 57,
-        name: 'primeape',
-        source: 'DIRECT',
+      select: {
+        fromSpeciesId: true,
+        toSpecies: {
+          select: {
+            id: true,
+            externalId: true,
+            name: true,
+          },
+        },
+        rules: {
+          select: {
+            versionGroupId: true,
+          },
+        },
       },
-    ]);
-
-    expect(prisma.evolution.findMany).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('accepts an evolution introduced in the same generation as the game', async () => {
+  it('accepts an evolution introduced before the game generation', async () => {
     mockGame(4, 'vg-4');
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
@@ -450,14 +436,9 @@ describe('RecommendationCoverageService', () => {
       },
     ]);
 
-    prisma.evolution.findMany
-      .mockResolvedValueOnce([
-        {
-          toSpecies: species('species-212', 212, 'scizor', 2),
-          rules: [],
-        },
-      ])
-      .mockResolvedValueOnce([]);
+    prisma.evolution.findMany.mockResolvedValue([
+      evolution('species-123', 'species-212', 212, 'scizor'),
+    ]);
 
     const result = await service.getGameCoverage(10);
 
@@ -466,6 +447,49 @@ describe('RecommendationCoverageService', () => {
       name: 'scizor',
       source: 'EVOLUTION',
     });
+  });
+
+  it('loads the evolution graph with a single query', async () => {
+    mockGame();
+
+    prisma.pokemonAcquisition.findMany.mockResolvedValue([
+      {
+        variety: {
+          species: {
+            id: 'species-1',
+            externalId: 1,
+            name: 'bulbasaur',
+          },
+        },
+      },
+    ]);
+
+    prisma.evolution.findMany.mockResolvedValue([
+      evolution('species-1', 'species-2', 2, 'ivysaur'),
+      evolution('species-2', 'species-3', 3, 'venusaur'),
+    ]);
+
+    const result = await service.getGameCoverage(10);
+
+    expect(prisma.evolution.findMany).toHaveBeenCalledTimes(1);
+
+    expect(result.species).toEqual([
+      {
+        externalId: 1,
+        name: 'bulbasaur',
+        source: 'DIRECT',
+      },
+      {
+        externalId: 2,
+        name: 'ivysaur',
+        source: 'EVOLUTION',
+      },
+      {
+        externalId: 3,
+        name: 'venusaur',
+        source: 'EVOLUTION',
+      },
+    ]);
   });
 
   it('throws when game does not exist', async () => {

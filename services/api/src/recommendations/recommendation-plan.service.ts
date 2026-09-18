@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { ExtraGameRecommendationService } from './extra-game-recommendation.service';
 import { RecommendationCoverageService } from './recommendation-coverage.service';
 
 interface ObjectiveSpecies {
@@ -14,6 +15,7 @@ export class RecommendationPlanService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly coverageService: RecommendationCoverageService,
+    private readonly extraGameRecommendationService: ExtraGameRecommendationService,
   ) {}
 
   async getProfilePlan(userId: string, profileId: string) {
@@ -133,18 +135,34 @@ export class RecommendationPlanService {
         name: species.name,
       }));
 
+    const configuredGameIds = orderedGames.map(
+      (profileGame) => profileGame.game.externalId,
+    );
+
+    const extraRecommendations =
+      await this.extraGameRecommendationService.recommendExtraGames(
+        uncovered,
+        configuredGameIds,
+      );
+
     return {
       objective: {
         total: objectiveSpecies.length,
       },
+
       configuredGames: orderedGames.map((profileGame) => ({
         externalId: profileGame.game.externalId,
         name: profileGame.game.name,
         role: profileGame.role,
         position: profileGame.position,
       })),
+
       assignments,
       uncovered,
+
+      suggestedGames: extraRecommendations.suggestedGames,
+
+      stillUncovered: extraRecommendations.stillUncovered,
     };
   }
 

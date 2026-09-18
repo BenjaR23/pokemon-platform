@@ -1,20 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth';
+import { Link } from 'react-router-dom';
 import { useFavorites } from '../favorites/useFavorites';
 import type { FavoriteEntry } from '../favorites/favorites.api';
 
 export function FavoritesPage() {
-  const { user, loading: authLoading } = useAuth();
-
-  if (authLoading) {
-    return <FavoritesSkeleton />;
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
   return <FavoritesContent />;
 }
 

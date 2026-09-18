@@ -140,6 +140,7 @@ export class UsersController {
   }
 
   @Get('me/profiles/:profileId/games')
+  @UseGuards(AuthGuard)
   getProfileGames(
     @CurrentUser() user: AuthenticatedUser,
     @Param('profileId') profileId: string,
@@ -148,6 +149,7 @@ export class UsersController {
   }
 
   @Put('me/profiles/:profileId/games')
+  @UseGuards(AuthGuard)
   updateProfileGames(
     @CurrentUser() user: AuthenticatedUser,
     @Param('profileId') profileId: string,

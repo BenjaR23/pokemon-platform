@@ -10,6 +10,8 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { GamesModule } from './games/games.module';
 
+import { RecommendationsModule } from './recommendations/recommendations.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -20,6 +22,7 @@ import { GamesModule } from './games/games.module';
     AuthModule,
     UsersModule,
     GamesModule,
+    RecommendationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

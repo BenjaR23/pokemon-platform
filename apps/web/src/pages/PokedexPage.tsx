@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 
@@ -10,10 +11,22 @@ import {
 } from '../api/pokemon.api';
 
 import { Pagination } from '../components/Pagination';
-import { PokedexFilters } from '../components/PokedexFilters';
+
+import {
+  PokedexFilters,
+  type PokedexOrder,
+} from '../components/PokedexFilters';
+
 import { PokemonList } from '../components/PokemonList';
 import { PokemonListLoader } from '../components/PokemonListLoader';
+
 import { useProfile } from '../profiles/useProfile';
+
+import {
+  getRecommendationPokedex,
+  getRecommendationPlan,
+  type RecommendationAssignment,
+} from '../recommendations/recommendations.api';
 
 import type {
   PokemonGenerationOption,
@@ -22,73 +35,202 @@ import type {
 } from '../types/pokemon';
 
 export function PokedexPage() {
-  const [pokemon, setPokemon] = useState<PokemonListItem[]>([]);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [types, setTypes] = useState<PokemonTypeOption[]>([]);
-  const [selectedType, setSelectedType] = useState('');
-  const [generations, setGenerations] = useState<PokemonGenerationOption[]>([]);
-  const [selectedGeneration, setSelectedGeneration] = useState('');
+  const {
+    activeProfile,
+  } = useProfile();
 
-  const [page, setPage] = useState(
-    () => {
-      const savedPage = Number(
+  const activeProfileId =
+    activeProfile?.id ?? null;
+
+  const objectiveMode =
+    activeProfile?.objectiveMode ??
+    null;
+
+  const objectiveGenerationKey =
+    activeProfile?.generations
+      .map(
+        (entry) =>
+          entry.generation
+            .externalId,
+      )
+      .join(',') ?? '';
+
+  const [
+    pokemon,
+    setPokemon,
+  ] = useState<
+    PokemonListItem[]
+  >([]);
+
+  const [
+    totalPages,
+    setTotalPages,
+  ] = useState(1);
+
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState<
+    string | null
+  >(null);
+
+  const [
+    search,
+    setSearch,
+  ] = useState('');
+
+  const [
+    debouncedSearch,
+    setDebouncedSearch,
+  ] = useState('');
+
+  const [
+    types,
+    setTypes,
+  ] = useState<
+    PokemonTypeOption[]
+  >([]);
+
+  const [
+    selectedType,
+    setSelectedType,
+  ] = useState('');
+
+  const [
+    generations,
+    setGenerations,
+  ] = useState<
+    PokemonGenerationOption[]
+  >([]);
+
+  const [
+    selectedGeneration,
+    setSelectedGeneration,
+  ] = useState('');
+
+  const [
+    objectiveOnly,
+    setObjectiveOnly,
+  ] = useState(false);
+
+  const [
+    order,
+    setOrder,
+  ] =
+    useState<PokedexOrder>(
+      'POKEDEX',
+    );
+
+  const [
+    recommendationAssignments,
+    setRecommendationAssignments,
+  ] = useState<
+    RecommendationAssignment[]
+  >([]);
+
+  const [
+    page,
+    setPage,
+  ] = useState(() => {
+    const savedPage =
+      Number(
         localStorage.getItem(
           'pokedex-page',
         ),
       );
 
-      return Number.isInteger(
-        savedPage,
-      ) && savedPage > 0
-        ? savedPage
-        : 1;
-    },
-  );
-
-  const { activeProfile } = useProfile();
-
-  const [objectiveOnly, setObjectiveOnly] = useState(false);
+    return Number.isInteger(
+      savedPage,
+    ) &&
+      savedPage > 0
+      ? savedPage
+      : 1;
+  });
 
   const objectiveGenerationIds =
-    objectiveOnly &&
-    activeProfile?.objectiveMode ===
-      'GENERATIONS'
-      ? activeProfile.generations.map(
-          (entry) =>
-            entry.generation.externalId,
-        )
-      : undefined;
+    useMemo(() => {
+      if (
+        !objectiveOnly ||
+        objectiveMode !==
+          'GENERATIONS' ||
+        !objectiveGenerationKey
+      ) {
+        return undefined;
+      }
+
+      return objectiveGenerationKey
+        .split(',')
+        .map(Number);
+    }, [
+      objectiveOnly,
+      objectiveMode,
+      objectiveGenerationKey,
+    ]);
 
   const objectiveMinPokemonId =
     objectiveOnly &&
-    activeProfile?.objectiveMode === 'RANGE'
-      ? activeProfile.startPokemonNumber ??
+    objectiveMode ===
+      'RANGE'
+      ? activeProfile
+          ?.startPokemonNumber ??
         undefined
       : undefined;
 
   const objectiveMaxPokemonId =
     objectiveOnly &&
-    activeProfile?.objectiveMode === 'RANGE'
-      ? activeProfile.endPokemonNumber ??
+    objectiveMode ===
+      'RANGE'
+      ? activeProfile
+          ?.endPokemonNumber ??
         undefined
       : undefined;
 
-  useEffect(() => {
-    const timeoutId = setTimeout(
-      () => {
-        setDebouncedSearch(
-          search.trim(),
-        );
-      },
-      300,
+  const recommendationOrderAvailable =
+    activeProfileId !== null;
+
+  const effectiveOrder:
+    PokedexOrder =
+    recommendationOrderAvailable
+      ? order
+      : 'POKEDEX';
+
+  const recommendationByPokemon =
+    useMemo(
+      () =>
+        new Map(
+          recommendationAssignments.map(
+            (assignment) => [
+              assignment.pokemon
+                .externalId,
+              assignment,
+            ],
+          ),
+        ),
+      [
+        recommendationAssignments,
+      ],
     );
 
+  useEffect(() => {
+    const timeoutId =
+      setTimeout(
+        () => {
+          setDebouncedSearch(
+            search.trim(),
+          );
+        },
+        300,
+      );
+
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(
+        timeoutId,
+      );
     };
   }, [search]);
 
@@ -105,12 +247,15 @@ export function PokedexPage() {
         const [
           typesData,
           generationsData,
-        ] = await Promise.all([
-          getPokemonTypes(),
-          getPokemonGenerations(),
-        ]);
+        ] =
+          await Promise.all([
+            getPokemonTypes(),
+            getPokemonGenerations(),
+          ]);
 
-        setTypes(typesData);
+        setTypes(
+          typesData,
+        );
 
         setGenerations(
           generationsData,
@@ -126,41 +271,104 @@ export function PokedexPage() {
   }, []);
 
   useEffect(() => {
+    async function fetchRecommendationPlan() {
+      if (
+        !activeProfileId
+      ) {
+        setRecommendationAssignments(
+          [],
+        );
+
+        return;
+      }
+
+      try {
+        const plan =
+          await getRecommendationPlan(
+            activeProfileId,
+          );
+
+        setRecommendationAssignments(
+          plan.assignments,
+        );
+      } catch {
+        setRecommendationAssignments(
+          [],
+        );
+      }
+    }
+
+    void fetchRecommendationPlan();
+  }, [activeProfileId]);
+
+  useEffect(() => {
     async function fetchPokemon() {
       try {
-        setIsLoading(true);
-        setError(null);
+        setIsLoading(
+          true,
+        );
 
-        const data = await getPokemon({
+        setError(
+          null,
+        );
+
+        const params = {
           page,
           pageSize: 24,
+
           search:
-            debouncedSearch || undefined,
+            debouncedSearch ||
+            undefined,
+
           type:
-            selectedType || undefined,
+            selectedType ||
+            undefined,
+
           generation:
             selectedGeneration
-              ? Number(selectedGeneration)
+              ? Number(
+                  selectedGeneration,
+                )
               : undefined,
+
           generationIds:
             objectiveGenerationIds,
+
           minPokemonId:
             objectiveMinPokemonId,
+
           maxPokemonId:
             objectiveMaxPokemonId,
-        });
+        };
 
-        setPokemon(data.items);
+        const data =
+          effectiveOrder ===
+            'RECOMMENDATION' &&
+          activeProfileId
+            ? await getRecommendationPokedex(
+                activeProfileId,
+                params,
+              )
+            : await getPokemon(
+                params,
+              );
+
+        setPokemon(
+          data.items,
+        );
 
         setTotalPages(
-          data.pagination.totalPages,
+          data.pagination
+            .totalPages,
         );
 
         if (
-          data.pagination.totalPages >
+          data.pagination
+            .totalPages >
             0 &&
           page >
-            data.pagination.totalPages
+            data.pagination
+              .totalPages
         ) {
           setPage(
             data.pagination
@@ -172,7 +380,9 @@ export function PokedexPage() {
           'Could not load Pokemon.',
         );
       } finally {
-        setIsLoading(false);
+        setIsLoading(
+          false,
+        );
       }
     }
 
@@ -182,15 +392,11 @@ export function PokedexPage() {
     debouncedSearch,
     selectedType,
     selectedGeneration,
-    objectiveOnly,
     objectiveGenerationIds,
-    objectiveMaxPokemonId,
     objectiveMinPokemonId,
-    activeProfile?.id,
-    activeProfile?.objectiveMode,
-    activeProfile?.startPokemonNumber,
-    activeProfile?.endPokemonNumber,
-    activeProfile?.generations,
+    objectiveMaxPokemonId,
+    effectiveOrder,
+    activeProfileId,
   ]);
 
   const isSearchPending =
@@ -223,7 +429,10 @@ export function PokedexPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setObjectiveOnly(false);
+                    setObjectiveOnly(
+                      false,
+                    );
+
                     setPage(1);
                   }}
                   className={
@@ -238,7 +447,10 @@ export function PokedexPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setObjectiveOnly(true);
+                    setObjectiveOnly(
+                      true,
+                    );
+
                     setPage(1);
                   }}
                   className={
@@ -254,27 +466,43 @@ export function PokedexPage() {
           )}
 
           <PokedexFilters
-            search={search}
+            search={
+              search
+            }
             selectedType={
               selectedType
             }
             selectedGeneration={
               selectedGeneration
             }
-            types={types}
+            order={
+              effectiveOrder
+            }
+            recommendationOrderAvailable={
+              recommendationOrderAvailable
+            }
+            types={
+              types
+            }
             generations={
               generations
             }
             onSearchChange={(
               value,
             ) => {
-              setSearch(value);
+              setSearch(
+                value,
+              );
+
               setPage(1);
             }}
             onTypeChange={(
               value,
             ) => {
-              setSelectedType(value);
+              setSelectedType(
+                value,
+              );
+
               setPage(1);
             }}
             onGenerationChange={(
@@ -283,11 +511,19 @@ export function PokedexPage() {
               setSelectedGeneration(
                 value,
               );
+
+              setPage(1);
+            }}
+            onOrderChange={(
+              value,
+            ) => {
+              setOrder(
+                value,
+              );
+
               setPage(1);
             }}
           />
-
-          
         </header>
 
         {error ? (
@@ -298,7 +534,8 @@ export function PokedexPage() {
           </div>
         ) : showLoader ? (
           <PokemonListLoader />
-        ) : pokemon.length === 0 ? (
+        ) : pokemon.length ===
+          0 ? (
           <div className="rounded-xl border border-zinc-900 bg-zinc-950 py-16 text-center">
             <p className="text-zinc-400">
               No Pokemon found.
@@ -306,14 +543,21 @@ export function PokedexPage() {
           </div>
         ) : (
           <PokemonList
-            pokemon={pokemon}
+            pokemon={
+              pokemon
+            }
+            recommendationByPokemon={
+              recommendationByPokemon
+            }
           />
         )}
 
         {!showLoader &&
           !error && (
             <Pagination
-              page={page}
+              page={
+                page
+              }
               totalPages={
                 totalPages
               }

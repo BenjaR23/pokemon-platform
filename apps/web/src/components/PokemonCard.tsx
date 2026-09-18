@@ -7,13 +7,21 @@ import type { PokemonListItem } from '../types/pokemon';
 import { useAuth } from '../auth/useAuth';
 import { useCollection } from '../collection/useCollection';
 import { useFavorites } from '../favorites/useFavorites';
+import type {
+  RecommendationAssignment,
+} from '../recommendations/recommendations.api';
 
 interface PokemonCardProps {
   pokemon: PokemonListItem;
+
+  recommendation:
+    | RecommendationAssignment
+    | null;
 }
 
 export function PokemonCard({
   pokemon,
+  recommendation,
 }: PokemonCardProps) {
   const [imageLoaded, setImageLoaded] =
     useState(false);
@@ -168,7 +176,52 @@ export function PokemonCard({
             </span>
           ))}
         </div>
+
+        {recommendation && (
+          <div className="mt-3 border-t border-zinc-800 pt-3">
+            <p className="text-xs uppercase tracking-wider text-zinc-600">
+              Recommended game
+            </p>
+
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-sm font-medium text-zinc-300">
+                {formatName(
+                  recommendation.game.name,
+                )}
+              </span>
+
+              <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-500">
+                {recommendation.game.role ===
+                'PRIMARY'
+                  ? 'Primary'
+                  : 'Auxiliary'}
+              </span>
+            </div>
+
+            <p className="mt-1 text-xs text-zinc-600">
+              {recommendation.source ===
+              'EVOLUTION'
+                ? 'Obtainable by evolution'
+                : 'Direct acquisition'}
+            </p>
+          </div>
+        )}
       </div>
     </Link>
   );
+}
+
+function formatName(
+  value: string,
+) {
+  return value
+    .split('-')
+    .map(
+      (word) =>
+        word
+          .charAt(0)
+          .toUpperCase() +
+        word.slice(1),
+    )
+    .join(' ');
 }

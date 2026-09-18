@@ -4,10 +4,16 @@ import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { FavoritesService } from './favorites.service';
 import { ProfilesService } from './profiles.service';
+import { ProfileGamesService } from './profile-games.service';
 
 @Module({
   imports: [AuthModule],
   controllers: [UsersController],
-  providers: [UsersService, FavoritesService, ProfilesService],
+  providers: [
+    UsersService,
+    FavoritesService,
+    ProfilesService,
+    ProfileGamesService,
+  ],
 })
 export class UsersModule {}

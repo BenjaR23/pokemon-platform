@@ -501,13 +501,22 @@ model CollectionProfileGeneration {
   @@map("collection_profile_generations")
 }
 
+enum CollectionProfileGameRole {
+  PRIMARY
+  AUXILIARY
+}
+
 model CollectionProfileGame {
-  profileId String            @map("profile_id")
-  gameId    String            @map("game_id")
-  game      Game              @relation(fields: [gameId], references: [id])
-  profile   CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId String                    @map("profile_id")
+  gameId    String                    @map("game_id")
+  role      CollectionProfileGameRole @default(PRIMARY)
+  position  Int                       @default(0)
+
+  game    Game              @relation(fields: [gameId], references: [id])
+  profile CollectionProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@id([profileId, gameId])
+  @@index([profileId, role, position])
   @@map("collection_profile_games")
 }
 

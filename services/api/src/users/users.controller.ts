@@ -8,6 +8,7 @@ import {
   UseGuards,
   Body,
   Patch,
+  Put,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -17,6 +18,8 @@ import { UsersService } from './users.service';
 import { CreateCollectionProfileDto } from './dto/create-collection-profile.dto';
 import { ProfilesService } from './profiles.service';
 import { UpdateCollectionProfileDto } from './dto/update-collection-profile.dto';
+import { ProfileGamesService } from './profile-games.service';
+import { UpdateProfileGamesDto } from './dto/update-profile-games.dto';
 
 @Controller('users')
 export class UsersController {
@@ -24,6 +27,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly favoritesService: FavoritesService,
     private readonly profilesService: ProfilesService,
+    private readonly profileGamesService: ProfileGamesService,
   ) {}
 
   @Post('me/profiles')
@@ -133,5 +137,24 @@ export class UsersController {
     pokemonId: number,
   ) {
     return this.favoritesService.removeFavorite(user.id, profileId, pokemonId);
+  }
+
+  @Get('me/profiles/:profileId/games')
+  @UseGuards(AuthGuard)
+  getProfileGames(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+  ) {
+    return this.profileGamesService.getProfileGames(user.id, profileId);
+  }
+
+  @Put('me/profiles/:profileId/games')
+  @UseGuards(AuthGuard)
+  updateProfileGames(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('profileId') profileId: string,
+    @Body() dto: UpdateProfileGamesDto,
+  ) {
+    return this.profileGamesService.updateProfileGames(user.id, profileId, dto);
   }
 }

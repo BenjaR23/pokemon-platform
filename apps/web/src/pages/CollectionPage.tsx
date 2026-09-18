@@ -2,25 +2,11 @@ import {
   useMemo,
   useState,
 } from 'react';
-import {
-  Link,
-  Navigate,
-} from 'react-router-dom';
-import { useAuth } from '../auth/useAuth';
+import {Link} from 'react-router-dom';
 import { useCollection } from '../collection/useCollection';
 import type { CollectionEntry } from '../collection/collection.api';
 
 export function CollectionPage() {
-  const { user, loading: authLoading } = useAuth();
-
-  if (authLoading) {
-    return <CollectionSkeleton />;
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
   return <CollectionContent />;
 }
 

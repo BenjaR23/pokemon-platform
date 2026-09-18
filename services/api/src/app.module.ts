@@ -8,6 +8,7 @@ import { PokemonModule } from './pokemon/pokemon.module.js';
 
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { GamesModule } from './games/games.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
     PokemonModule,
     AuthModule,
     UsersModule,
+    GamesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

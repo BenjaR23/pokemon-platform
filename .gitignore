@@ -30,3 +30,5 @@ services/api/src/generated/prisma/
 # IDE
 .vscode/
 .idea/
+.vercel
+.env*

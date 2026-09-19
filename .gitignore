@@ -26,3 +26,7 @@ Thumbs.db
 # Prisma
 prisma/*.db
 services/api/src/generated/prisma/
+
+# IDE
+.vscode/
+.idea/

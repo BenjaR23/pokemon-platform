@@ -2,11 +2,12 @@ import { PokemonSyncService } from './pokemon-sync.service.js';
 import { PokemonService } from './pokemon.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EvolutionService } from './evolution.service.js';
+import { ConflictException } from '@nestjs/common';
+import { Prisma } from '../generated/prisma/client.js';
 
 describe('PokemonSyncService', () => {
   let service: PokemonSyncService;
 
-  // Pokemon Service se simula porque este test solo comprueba la orquestacion del proceso.
   const pokemonServiceMock = {
     syncSpecies: jest.fn(),
   };
@@ -36,21 +37,20 @@ describe('PokemonSyncService', () => {
   });
 
   it('should synchronize an inclusive range of Pokemon species', async () => {
-    // Simulamos el registro inicial de la ejecucion.
     prismaMock.syncRun.create.mockResolvedValue({
       id: 'sync-run-uuid',
       source: 'pokeapi',
       status: 'running',
+      active: true,
     });
 
-    // No se necesita un resultado concreto de cada especie.
     pokemonServiceMock.syncSpecies.mockResolvedValue({});
 
-    // Se simula el registro final exitoso.
     prismaMock.syncRun.update.mockResolvedValue({
       id: 'sync-run-uuid',
       source: 'pokeapi',
       status: 'completed',
+      active: null,
     });
 
     prismaMock.pokemonSpecies.findMany.mockResolvedValue([
@@ -98,10 +98,8 @@ describe('PokemonSyncService', () => {
 
     expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledWith(1);
 
-    // El rango debe ser inclusivo.
     expect(pokemonServiceMock.syncSpecies).toHaveBeenCalledTimes(3);
 
-    // Se verifica que las tres llamdas reciban algun contexto.
     expect(pokemonServiceMock.syncSpecies).toHaveBeenNthCalledWith(
       1,
       1,
@@ -120,21 +118,21 @@ describe('PokemonSyncService', () => {
       expect.any(Object),
     );
 
-    // La ejecucion debe comenzar en estado running.
     expect(prismaMock.syncRun.create).toHaveBeenCalledWith({
       data: {
         source: 'pokeapi',
         status: 'running',
+        active: true,
       },
     });
 
-    // Y finalmente debe quedar completada.
     expect(prismaMock.syncRun.update).toHaveBeenCalledWith({
       where: {
         id: 'sync-run-uuid',
       },
       data: {
         status: 'completed',
+        active: null,
         finishedAt: expect.any(Date) as Date,
       },
     });
@@ -145,21 +143,17 @@ describe('PokemonSyncService', () => {
       id: 'sync-run-uuid',
       source: 'pokeapi',
       status: 'running',
+      active: true,
     });
 
-    // La primera especie funciona.
     pokemonServiceMock.syncSpecies
       .mockResolvedValueOnce({})
       .mockRejectedValueOnce(new Error('PokeAPI failure'));
 
     prismaMock.syncRun.update.mockResolvedValue({});
 
-    await expect(service.syncRange(1, 3)).rejects.toThrow.apply(
-      'PokeAPI failure',
-    );
+    await expect(service.syncRange(1, 3)).rejects.toThrow('PokeAPI failure');
 
-    // Solo deberian haberse intentado 1 y 2.
-    // La especie 3 no se ejecuta despues del error.
     expect(pokemonServiceMock.syncSpecies).toHaveBeenCalledTimes(2);
 
     expect(prismaMock.syncRun.update).toHaveBeenCalledWith({
@@ -168,6 +162,7 @@ describe('PokemonSyncService', () => {
       },
       data: {
         status: 'failed',
+        active: null,
         finishedAt: expect.any(Date) as Date,
         error: 'PokeAPI failure',
       },
@@ -179,7 +174,6 @@ describe('PokemonSyncService', () => {
       'Invalid Pokemon synchronization range',
     );
 
-    // Si el rango es invalido no debe crearse ningun SyncRun.
     expect(prismaMock.syncRun.create).not.toHaveBeenCalled();
 
     expect(pokemonServiceMock.syncSpecies).not.toHaveBeenCalled();
@@ -188,6 +182,7 @@ describe('PokemonSyncService', () => {
   it('should synchronize each unique evolution chain once', async () => {
     prismaMock.syncRun.create.mockResolvedValue({
       id: 'sync-run-uuid',
+      active: true,
     });
 
     pokemonServiceMock.syncSpecies.mockResolvedValue({});
@@ -226,6 +221,7 @@ describe('PokemonSyncService', () => {
   it('should ignore species without an evolution chain', async () => {
     prismaMock.syncRun.create.mockResolvedValue({
       id: 'sync-run-uuid',
+      active: true,
     });
 
     pokemonServiceMock.syncSpecies.mockResolvedValue({});
@@ -253,5 +249,81 @@ describe('PokemonSyncService', () => {
     expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledTimes(1);
 
     expect(evolutionServiceMock.syncEvolutionChain).toHaveBeenCalledWith(5);
+  });
+
+  it('should reject a synchronization when another sync is already running', async () => {
+    const uniqueConstraintError = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      {
+        code: 'P2002',
+        clientVersion: '7.9.1',
+        meta: {
+          target: ['active'],
+        },
+      },
+    );
+
+    prismaMock.syncRun.create.mockRejectedValue(uniqueConstraintError);
+
+    await expect(service.syncRange(1, 3)).rejects.toThrow(ConflictException);
+
+    await expect(service.syncRange(1, 3)).rejects.toThrow(
+      'A Pokemon synchronization is already running',
+    );
+
+    expect(pokemonServiceMock.syncSpecies).not.toHaveBeenCalled();
+
+    expect(prismaMock.pokemonSpecies.findMany).not.toHaveBeenCalled();
+
+    expect(evolutionServiceMock.syncEvolutionChain).not.toHaveBeenCalled();
+
+    expect(prismaMock.syncRun.update).not.toHaveBeenCalled();
+  });
+
+  it('should rethrow unexpected errors when creating a sync run', async () => {
+    const databaseError = new Error('Database unavailable');
+
+    prismaMock.syncRun.create.mockRejectedValue(databaseError);
+
+    await expect(service.syncRange(1, 3)).rejects.toThrow(
+      'Database unavailable',
+    );
+
+    expect(pokemonServiceMock.syncSpecies).not.toHaveBeenCalled();
+
+    expect(prismaMock.pokemonSpecies.findMany).not.toHaveBeenCalled();
+
+    expect(evolutionServiceMock.syncEvolutionChain).not.toHaveBeenCalled();
+
+    expect(prismaMock.syncRun.update).not.toHaveBeenCalled();
+  });
+
+  it('should reject a synchronization when another sync is already running', async () => {
+    const uniqueConstraintError = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      {
+        code: 'P2002',
+        clientVersion: '7.9.1',
+        meta: {
+          target: ['active'],
+        },
+      },
+    );
+
+    prismaMock.syncRun.create.mockRejectedValue(uniqueConstraintError);
+
+    const syncPromise = service.syncRange(1, 3);
+
+    await expect(syncPromise).rejects.toThrow(
+      'A Pokemon synchronization is already running',
+    );
+
+    expect(pokemonServiceMock.syncSpecies).not.toHaveBeenCalled();
+
+    expect(prismaMock.pokemonSpecies.findMany).not.toHaveBeenCalled();
+
+    expect(evolutionServiceMock.syncEvolutionChain).not.toHaveBeenCalled();
+
+    expect(prismaMock.syncRun.update).not.toHaveBeenCalled();
   });
 });

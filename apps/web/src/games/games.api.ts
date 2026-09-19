@@ -11,10 +11,12 @@ export interface GameOption {
   };
 }
 
+import { API_URL } from "../config/api";
+
 export async function getGames(): Promise<GameOption[]> {
   const response = await fetch(
-    'http://localhost:3000/games',
-  );
+    `${API_URL}/games`,
+  )
 
   if (!response.ok) {
     throw new Error(

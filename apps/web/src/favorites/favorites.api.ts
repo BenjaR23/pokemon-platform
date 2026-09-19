@@ -15,7 +15,7 @@ export interface FavoriteEntry {
   };
 }
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../config/api';
 
 export async function getFavorites(
   profileId: string,

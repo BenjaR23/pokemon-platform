@@ -6,7 +6,7 @@ import type {
   PokemonEncountersResponse,
 } from '../types/pokemon';
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../config/api';
 
 export interface GetPokemonParams {
   page: number;

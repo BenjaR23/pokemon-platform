@@ -4,7 +4,7 @@ import type {
   RegisterInput,
 } from './auth.types';
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../config/api';
 
 export async function register(
   input: RegisterInput,

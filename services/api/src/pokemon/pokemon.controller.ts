@@ -11,12 +11,14 @@ import { PokemonSyncService } from './pokemon-sync.service.js';
 import { SyncPokemonRangeDto } from './dto/sync-pokemon-range.dto.js';
 import { Query } from '@nestjs/common';
 import { GetPokemonQueryDto } from './dto/get-pokemon-query.dto.js';
+import { EncounterService } from './encounter.service.js';
 
 @Controller('pokemon')
 export class PokemonController {
   constructor(
     private readonly pokemonService: PokemonService,
     private readonly pokemonSyncService: PokemonSyncService,
+    private readonly encounterService: EncounterService,
   ) {}
 
   @Get('types')
@@ -58,16 +60,22 @@ export class PokemonController {
   }
 
   @Get(':id/encounters')
-  findEncounters(@Param('id', ParseIntPipe) id: number) {
-    return this.pokemonService.findEncounters(id);
+  findEncounters(
+    @Param('id', ParseIntPipe)
+    id: number,
+  ) {
+    return this.encounterService.findPokemonEncounters(id);
   }
 
   @Get(':id/variants/:variantId/encounters')
   findVariantEncounters(
-    @Param('id', ParseIntPipe) id: number,
-    @Param('variantId', ParseIntPipe) variantId: number,
+    @Param('id', ParseIntPipe)
+    id: number,
+
+    @Param('variantId', ParseIntPipe)
+    variantId: number,
   ) {
-    return this.pokemonService.findEncounters(id, variantId);
+    return this.encounterService.findPokemonEncounters(id, variantId);
   }
 
   /**

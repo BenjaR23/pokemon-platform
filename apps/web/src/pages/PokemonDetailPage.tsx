@@ -1,84 +1,150 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  Link,
+  useParams,
+} from 'react-router-dom';
+
+import {
+  getPokemonDetail,
+  getPokemonEncounters,
+} from '../api/pokemon.api';
+
 import { useAuth } from '../auth/useAuth';
 import { useCollection } from '../collection/useCollection';
+
 import { PokemonEncounters } from '../components/PokemonEncounters';
 import { PokemonEvolution } from '../components/PokemonEvolution';
-import type {
-  PokemonDetail,
-  PokemonEncountersResponse,
-} from '../types/pokemon';
+
 import { useFavorites } from '../favorites/useFavorites';
-import { getRecommendationPlan } from '../recommendations/recommendations.api';
 import { useProfile } from '../profiles/useProfile';
 
+import { getRecommendationPlan } from '../recommendations/recommendations.api';
+
+import type {
+  PokemonDetail,
+  PokemonEncounterGame,
+} from '../types/pokemon';
+
 export function PokemonDetailPage() {
-  const [updatingCollection, setUpdatingCollection] =
-  useState(false);
-  const { id, variantId } = useParams();
+  const {
+    id,
+    variantId,
+  } = useParams();
 
-  const { user } = useAuth();
+  const { user } =
+    useAuth();
 
-  const { activeProfile } =
-    useProfile();
+  const {
+    activeProfile,
+  } = useProfile();
+
+  const {
+    isCollected,
+    loading:
+      collectionLoading,
+    toggleCollection,
+  } = useCollection();
+
+  const {
+    isFavorite,
+    loading:
+      favoritesLoading,
+    toggleFavorite,
+  } = useFavorites();
+
+  const pokemonId =
+    Number(id ?? 0);
 
   const activeProfileId =
-    activeProfile?.id ?? null;
+    activeProfile?.id ??
+    null;
 
-  const pokemonId = Number(id ?? 0);
+  const collected =
+    isCollected(
+      pokemonId,
+    );
+
+  const favorite =
+    isFavorite(
+      pokemonId,
+    );
+
+  const [
+    pokemon,
+    setPokemon,
+  ] = useState<
+    PokemonDetail | null
+  >(null);
+
+  const [
+    encounterGames,
+    setEncounterGames,
+  ] = useState<
+    PokemonEncounterGame[]
+  >([]);
 
   const [
     recommendedGameId,
     setRecommendedGameId,
-  ] = useState<number | null>(
-    null,
-  );
+  ] = useState<
+    number | null
+  >(null);
 
-  const {
-    isCollected,
-    loading: collectionLoading,
-    toggleCollection
-  } = useCollection();
+  const [
+    updatingCollection,
+    setUpdatingCollection,
+  ] = useState(false);
 
-  const collected = isCollected(pokemonId);
+  const [
+    updatingFavorite,
+    setUpdatingFavorite,
+  ] = useState(false);
 
-  const {
-    isFavorite,
-    loading: favoritesLoading,
-    toggleFavorite,
-  } = useFavorites();
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
 
-  const favorite = isFavorite(pokemonId);
-
-  const [updatingFavorite, setUpdatingFavorite] = useState(false);
-
-  const [pokemon, setPokemon] =
-    useState<PokemonDetail | null>(null);
-
-  const [encounterGames, setEncounterGames] = useState<
-    PokemonEncountersResponse['games']
-  >([]);
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [
+    error,
+    setError,
+  ] = useState<
+    string | null
+  >(null);
 
   async function handleCollectionToggle() {
-    setUpdatingCollection(true);
+    setUpdatingCollection(
+      true,
+    );
 
     try {
-      await toggleCollection(pokemonId);
+      await toggleCollection(
+        pokemonId,
+      );
     } finally {
-      setUpdatingCollection(false);
+      setUpdatingCollection(
+        false,
+      );
     }
   }
 
   async function handleFavoriteToggle() {
-    setUpdatingFavorite(true);
+    setUpdatingFavorite(
+      true,
+    );
 
     try {
-      await toggleFavorite(pokemonId);
+      await toggleFavorite(
+        pokemonId,
+      );
     } finally {
-      setUpdatingFavorite(false);
+      setUpdatingFavorite(
+        false,
+      );
     }
   }
 
@@ -88,87 +154,115 @@ export function PokemonDetailPage() {
       left: 0,
       behavior: 'instant',
     });
-  }, [id, variantId]);
+  }, [
+    id,
+    variantId,
+  ]);
 
   useEffect(() => {
     async function fetchPokemon() {
       try {
-        setIsLoading(true);
-        setError(null);
+        setIsLoading(
+          true,
+        );
 
-        const pokemonUrl = variantId
-          ? `http://localhost:3000/pokemon/${id}/variants/${variantId}`
-          : `http://localhost:3000/pokemon/${id}`;
+        setError(
+          null,
+        );
 
-        const encountersUrl = variantId
-          ? `http://localhost:3000/pokemon/${id}/variants/${variantId}/encounters`
-          : `http://localhost:3000/pokemon/${id}/encounters`;
+        const parsedPokemonId =
+          Number(id);
+
+        const parsedVariantId =
+          variantId !==
+          undefined
+            ? Number(
+                variantId,
+              )
+            : undefined;
 
         const recommendationPromise =
           activeProfileId
             ? getRecommendationPlan(
                 activeProfileId,
               )
-            : Promise.resolve(null);
+            : Promise.resolve(
+                null,
+              );
 
         const [
-          pokemonResponse,
-          encountersResponse,
+          pokemonData,
+          encountersData,
           recommendationPlan,
-        ] = await Promise.all([
-          fetch(pokemonUrl),
-          fetch(encountersUrl),
-          recommendationPromise,
-        ]);
+        ] =
+          await Promise.all([
+            getPokemonDetail(
+              parsedPokemonId,
+              parsedVariantId,
+            ),
 
-        if (!pokemonResponse.ok) {
-          throw new Error('Failed to fetch Pokemon');
-        }
+            getPokemonEncounters(
+              parsedPokemonId,
+              parsedVariantId,
+            ),
 
-        if (!encountersResponse.ok) {
-          throw new Error(
-            'Failed to fetch Pokemon encounters',
-          );
-        }
+            recommendationPromise,
+          ]);
 
-        const pokemonData: PokemonDetail =
-          await pokemonResponse.json();
+        setPokemon(
+          pokemonData,
+        );
 
-        const encountersData: PokemonEncountersResponse =
-          await encountersResponse.json();
-
-        setPokemon(pokemonData);
-        setEncounterGames(encountersData.games);
+        setEncounterGames(
+          encountersData.games,
+        );
 
         const assignment =
-          recommendationPlan?.assignments.find(
-            (entry) =>
-              entry.pokemon.externalId ===
-              pokemonData.id,
-          );
+          recommendationPlan
+            ?.assignments.find(
+              (entry) =>
+                entry.pokemon
+                  .externalId ===
+                pokemonData.id,
+            );
 
         setRecommendedGameId(
-          assignment?.game.externalId ??
+          assignment?.game
+            .externalId ??
             null,
         );
       } catch {
-        setError('Could not load Pokemon.');
+        setError(
+          'Could not load Pokemon.',
+        );
       } finally {
-        setIsLoading(false);
+        setIsLoading(
+          false,
+        );
       }
     }
 
     void fetchPokemon();
-  }, [id, variantId, activeProfileId]);
+  }, [
+    id,
+    variantId,
+    activeProfileId,
+  ]);
 
   if (isLoading) {
-    return <PokemonDetailSkeleton />;
+    return (
+      <PokemonDetailSkeleton />
+    );
   }
 
-  if (error || !pokemon) {
+  if (
+    error ||
+    !pokemon
+  ) {
     return (
       <main className="min-h-screen bg-black p-8 text-zinc-400">
-        {error ?? 'Pokemon not found.'}
+        {error ??
+          'Pokemon not found.'}
       </main>
     );
   }
@@ -185,39 +279,58 @@ export function PokemonDetailPage() {
 
         <section className="mt-8 grid gap-8 lg:grid-cols-2">
           <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-8">
-            {pokemon.variants.length > 1 && (
+            {pokemon.variants
+              .length >
+              1 && (
               <div className="mb-6 flex flex-wrap justify-center gap-2">
-                {pokemon.variants.map((variant) => {
-                  const isSelected =
-                    variant.id ===
-                    pokemon.selectedVariant.id;
+                {pokemon.variants.map(
+                  (
+                    variant,
+                  ) => {
+                    const isSelected =
+                      variant.id ===
+                      pokemon
+                        .selectedVariant
+                        .id;
 
-                  const path = variant.isDefault
-                    ? `/pokemon/${pokemon.id}`
-                    : `/pokemon/${pokemon.id}/variants/${variant.id}`;
+                    const path =
+                      variant.isDefault
+                        ? `/pokemon/${pokemon.id}`
+                        : `/pokemon/${pokemon.id}/variants/${variant.id}`;
 
-                  return (
-                    <Link
-                      key={variant.id}
-                      to={path}
-                      className={`rounded-lg border px-3 py-2 text-sm transition ${
-                        isSelected
-                          ? 'border-zinc-500 bg-zinc-800 text-zinc-100'
-                          : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
-                      }`}
-                    >
-                      {formatName(variant.name)}
-                    </Link>
-                  );
-                })}
+                    return (
+                      <Link
+                        key={
+                          variant.id
+                        }
+                        to={
+                          path
+                        }
+                        className={`rounded-lg border px-3 py-2 text-sm transition ${
+                          isSelected
+                            ? 'border-zinc-500 bg-zinc-800 text-zinc-100'
+                            : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200'
+                        }`}
+                      >
+                        {formatName(
+                          variant.name,
+                        )}
+                      </Link>
+                    );
+                  },
+                )}
               </div>
             )}
 
             <div className="flex items-center justify-center">
               <img
-                src={pokemon.image}
+                src={
+                  pokemon.image
+                }
                 alt={formatName(
-                  pokemon.selectedVariant.name,
+                  pokemon
+                    .selectedVariant
+                    .name,
                 )}
                 className="max-h-[420px] w-full object-contain"
               />
@@ -231,12 +344,17 @@ export function PokemonDetailPage() {
                   #
                   {pokemon.id
                     .toString()
-                    .padStart(4, '0')}
+                    .padStart(
+                      4,
+                      '0',
+                    )}
                 </span>
 
                 <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-100">
                   {formatName(
-                    pokemon.selectedVariant.name,
+                    pokemon
+                      .selectedVariant
+                      .name,
                   )}
                 </h1>
               </div>
@@ -245,9 +363,12 @@ export function PokemonDetailPage() {
                 <div className="flex shrink-0 gap-2">
                   <button
                     type="button"
-                    onClick={() => void handleFavoriteToggle()}
+                    onClick={() =>
+                      void handleFavoriteToggle()
+                    }
                     disabled={
-                      favoritesLoading || updatingFavorite
+                      favoritesLoading ||
+                      updatingFavorite
                     }
                     className={
                       favorite
@@ -264,9 +385,12 @@ export function PokemonDetailPage() {
 
                   <button
                     type="button"
-                    onClick={() => void handleCollectionToggle()}
+                    onClick={() =>
+                      void handleCollectionToggle()
+                    }
                     disabled={
-                      collectionLoading || updatingCollection
+                      collectionLoading ||
+                      updatingCollection
                     }
                     className={
                       collected
@@ -285,19 +409,30 @@ export function PokemonDetailPage() {
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {pokemon.types.map((type) => (
-                <span
-                  key={type}
-                  className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-300"
-                >
-                  {type}
-                </span>
-              ))}
+              {pokemon.types.map(
+                (type) => (
+                  <span
+                    key={
+                      type
+                    }
+                    className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1 text-sm text-zinc-300"
+                  >
+                    {
+                      type
+                    }
+                  </span>
+                ),
+              )}
             </div>
 
             {pokemon.generation && (
               <p className="mt-6 text-sm text-zinc-400">
-                Generation {pokemon.generation.id}
+                Generation{' '}
+                {
+                  pokemon
+                    .generation
+                    .id
+                }
               </p>
             )}
 
@@ -307,14 +442,22 @@ export function PokemonDetailPage() {
               </h2>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                {pokemon.abilities.map((ability) => (
-                  <span
-                    key={ability}
-                    className="rounded-md bg-zinc-900 px-3 py-2 text-sm text-zinc-300"
-                  >
-                    {formatName(ability)}
-                  </span>
-                ))}
+                {pokemon.abilities.map(
+                  (
+                    ability,
+                  ) => (
+                    <span
+                      key={
+                        ability
+                      }
+                      className="rounded-md bg-zinc-900 px-3 py-2 text-sm text-zinc-300"
+                    >
+                      {formatName(
+                        ability,
+                      )}
+                    </span>
+                  ),
+                )}
               </div>
             </div>
 
@@ -327,36 +470,56 @@ export function PokemonDetailPage() {
                 <div className="mt-4 space-y-3 text-sm">
                   <Stat
                     label="HP"
-                    value={pokemon.stats.hp}
+                    value={
+                      pokemon
+                        .stats
+                        .hp
+                    }
                   />
 
                   <Stat
                     label="Attack"
-                    value={pokemon.stats.attack}
+                    value={
+                      pokemon
+                        .stats
+                        .attack
+                    }
                   />
 
                   <Stat
                     label="Defense"
-                    value={pokemon.stats.defense}
+                    value={
+                      pokemon
+                        .stats
+                        .defense
+                    }
                   />
 
                   <Stat
                     label="Sp. Attack"
                     value={
-                      pokemon.stats.specialAttack
+                      pokemon
+                        .stats
+                        .specialAttack
                     }
                   />
 
                   <Stat
                     label="Sp. Defense"
                     value={
-                      pokemon.stats.specialDefense
+                      pokemon
+                        .stats
+                        .specialDefense
                     }
                   />
 
                   <Stat
                     label="Speed"
-                    value={pokemon.stats.speed}
+                    value={
+                      pokemon
+                        .stats
+                        .speed
+                    }
                   />
                 </div>
               </div>
@@ -366,17 +529,25 @@ export function PokemonDetailPage() {
 
         <PokemonEvolution
           currentPokemonNodeId={
-            pokemon.selectedVariant.isDefault
+            pokemon
+              .selectedVariant
+              .isDefault
               ? `${pokemon.id}:default`
               : `${pokemon.id}:${pokemon.selectedVariant.id}`
           }
-          evolutionChain={pokemon.evolutionChain}
-          nextEvolutions={pokemon.nextEvolutions}
+          evolutionChain={
+            pokemon.evolutionChain
+          }
+          nextEvolutions={
+            pokemon.nextEvolutions
+          }
         />
 
         <PokemonEncounters
-          key={`${pokemon.id}-${pokemon.selectedVariant.id}-${activeProfile?.id ?? 'no-profile'}`}
-          games={encounterGames}
+          key={`${pokemon.id}-${pokemon.selectedVariant.id}-${activeProfileId ?? 'no-profile'}`}
+          games={
+            encounterGames
+          }
           recommendedGameId={
             recommendedGameId
           }
@@ -391,7 +562,10 @@ interface StatProps {
   value: number;
 }
 
-function Stat({ label, value }: StatProps) {
+function Stat({
+  label,
+  value,
+}: StatProps) {
   return (
     <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
       <span className="text-zinc-400">
@@ -443,15 +617,22 @@ function PokemonDetailSkeleton() {
               <div className="mt-4 space-y-4">
                 {Array.from({
                   length: 6,
-                }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between border-b border-zinc-900 pb-2"
-                  >
-                    <div className="h-4 w-24 animate-pulse rounded bg-zinc-900" />
-                    <div className="h-4 w-10 animate-pulse rounded bg-zinc-900" />
-                  </div>
-                ))}
+                }).map(
+                  (
+                    _,
+                    index,
+                  ) => (
+                    <div
+                      key={
+                        index
+                      }
+                      className="flex items-center justify-between border-b border-zinc-900 pb-2"
+                    >
+                      <div className="h-4 w-24 animate-pulse rounded bg-zinc-900" />
+                      <div className="h-4 w-10 animate-pulse rounded bg-zinc-900" />
+                    </div>
+                  ),
+                )}
               </div>
             </div>
           </div>
@@ -461,12 +642,16 @@ function PokemonDetailSkeleton() {
   );
 }
 
-function formatName(name: string) {
+function formatName(
+  name: string,
+) {
   return name
     .split('-')
     .map(
       (part) =>
-        part.charAt(0).toUpperCase() +
+        part
+          .charAt(0)
+          .toUpperCase() +
         part.slice(1),
     )
     .join(' ');

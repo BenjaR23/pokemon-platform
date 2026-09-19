@@ -43,7 +43,7 @@ describe('AuthService', () => {
     service = new AuthService(prisma as never, jwtService as never);
   });
 
-  it('registers a new user with a hashed password', async () => {
+  it('registers a new user with a hashed password and Main profile', async () => {
     prisma.user.findFirst.mockResolvedValue(null);
 
     prisma.user.create.mockResolvedValue({
@@ -68,6 +68,12 @@ describe('AuthService', () => {
         email: 'benja@example.com',
         username: 'benja',
         passwordHash: 'hashed-password',
+        profiles: {
+          create: {
+            name: 'Main',
+            objectiveMode: 'ALL',
+          },
+        },
       },
       select: {
         id: true,

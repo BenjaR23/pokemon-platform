@@ -49,6 +49,12 @@ export class AuthService {
         email: dto.email,
         username: dto.username,
         passwordHash,
+        profiles: {
+          create: {
+            name: 'Main',
+            objectiveMode: 'ALL',
+          },
+        },
       },
       select: {
         id: true,

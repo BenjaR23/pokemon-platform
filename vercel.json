@@ -8,7 +8,10 @@
     "api": {
       "root": "services/api",
       "framework": "nestjs",
-      "entrypoint": "src/main.ts"
+      "entrypoint": "src/main.ts",
+      "includeFiles": [
+        "node_modules/**"
+      ]
     }
   },
   "rewrites": [

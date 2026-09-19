@@ -6,6 +6,7 @@ import type {
 
 interface PokemonEncountersProps {
   games: PokemonEncounterGame[];
+  recommendedGameId?: number | null;
 }
 
 interface EncounterLocation {
@@ -17,13 +18,28 @@ interface EncounterLocation {
 
 export function PokemonEncounters({
   games,
+  recommendedGameId,
 }: PokemonEncountersProps) {
-  const [selectedGameId, setSelectedGameId] = useState(
-    games[0]?.id ?? 0,
-  );
+  const initialGameId =
+    games.find(
+      (game) =>
+        game.id ===
+        recommendedGameId,
+    )?.id ??
+    games[0]?.id ??
+    0;
+
+  const [
+    selectedGameId,
+    setSelectedGameId,
+  ] = useState(initialGameId);
 
   const selectedGame =
-    games.find((game) => game.id === selectedGameId) ?? games[0];
+    games.find(
+      (game) =>
+        game.id ===
+        selectedGameId,
+    ) ?? games[0];
 
   const locations = useMemo(() => {
     if (!selectedGame) {

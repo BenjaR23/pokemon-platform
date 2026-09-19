@@ -9,6 +9,8 @@ import type {
   PokemonEncountersResponse,
 } from '../types/pokemon';
 import { useFavorites } from '../favorites/useFavorites';
+import { getRecommendationPlan } from '../recommendations/recommendations.api';
+import { useProfile } from '../profiles/useProfile';
 
 export function PokemonDetailPage() {
   const [updatingCollection, setUpdatingCollection] =
@@ -17,7 +19,20 @@ export function PokemonDetailPage() {
 
   const { user } = useAuth();
 
+  const { activeProfile } =
+    useProfile();
+
+  const activeProfileId =
+    activeProfile?.id ?? null;
+
   const pokemonId = Number(id ?? 0);
+
+  const [
+    recommendedGameId,
+    setRecommendedGameId,
+  ] = useState<number | null>(
+    null,
+  );
 
   const {
     isCollected,
@@ -89,12 +104,21 @@ export function PokemonDetailPage() {
           ? `http://localhost:3000/pokemon/${id}/variants/${variantId}/encounters`
           : `http://localhost:3000/pokemon/${id}/encounters`;
 
+        const recommendationPromise =
+          activeProfileId
+            ? getRecommendationPlan(
+                activeProfileId,
+              )
+            : Promise.resolve(null);
+
         const [
           pokemonResponse,
           encountersResponse,
+          recommendationPlan,
         ] = await Promise.all([
           fetch(pokemonUrl),
           fetch(encountersUrl),
+          recommendationPromise,
         ]);
 
         if (!pokemonResponse.ok) {
@@ -115,6 +139,18 @@ export function PokemonDetailPage() {
 
         setPokemon(pokemonData);
         setEncounterGames(encountersData.games);
+
+        const assignment =
+          recommendationPlan?.assignments.find(
+            (entry) =>
+              entry.pokemon.externalId ===
+              pokemonData.id,
+          );
+
+        setRecommendedGameId(
+          assignment?.game.externalId ??
+            null,
+        );
       } catch {
         setError('Could not load Pokemon.');
       } finally {
@@ -123,7 +159,7 @@ export function PokemonDetailPage() {
     }
 
     void fetchPokemon();
-  }, [id, variantId]);
+  }, [id, variantId, activeProfileId]);
 
   if (isLoading) {
     return <PokemonDetailSkeleton />;
@@ -338,7 +374,13 @@ export function PokemonDetailPage() {
           nextEvolutions={pokemon.nextEvolutions}
         />
 
-        <PokemonEncounters games={encounterGames} />
+        <PokemonEncounters
+          key={`${pokemon.id}-${pokemon.selectedVariant.id}-${activeProfile?.id ?? 'no-profile'}`}
+          games={encounterGames}
+          recommendedGameId={
+            recommendedGameId
+          }
+        />
       </div>
     </main>
   );

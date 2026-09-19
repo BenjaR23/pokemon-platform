@@ -7,6 +7,7 @@ import { ReferenceDataService } from './reference-data.service.js';
 import { PokemonSyncService } from './pokemon-sync.service.js';
 import { EvolutionService } from './evolution.service.js';
 import { EncounterService } from './encounter.service.js';
+import { SyncApiKeyGuard } from './sync-api-key.guard.js';
 
 @Module({
   controllers: [PokemonController],
@@ -18,6 +19,7 @@ import { EncounterService } from './encounter.service.js';
     PokemonSyncService,
     EvolutionService,
     EncounterService,
+    SyncApiKeyGuard,
   ],
 
   exports: [PokemonService],

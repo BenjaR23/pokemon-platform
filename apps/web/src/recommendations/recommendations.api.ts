@@ -7,8 +7,7 @@ import type {
   PokemonListResponse,
 } from '../types/pokemon';
 
-const API_URL =
-  'http://localhost:3000';
+import { API_URL } from '../config/api';
 
 export type RecommendationGameRole =
   | 'PRIMARY'

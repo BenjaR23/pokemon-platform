@@ -7,3 +7,9 @@ node_modules
 
 # Local development
 prisma-dev.txt
+
+# AI / agent tooling
+.agents/
+.claude/
+.windsurf/
+skills-lock.json

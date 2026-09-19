@@ -1,68 +1,56 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
+
 import { PokemonService } from './pokemon.service.js';
 import { PrismaService } from '../prisma/prisma.service';
 import { createPokemonSyncContext } from './pokemon-sync-context.js';
 import { EvolutionService } from './evolution.service.js';
+import { Prisma } from '../generated/prisma/client.js';
 
 @Injectable()
 export class PokemonSyncService {
   constructor(
-    // Servicio que sabe sincronizar una especie concreta.
     private readonly pokemonService: PokemonService,
-
-    // Prisma se utiliza para registrar cada ejecucion de sincronizacion.
     private readonly prisma: PrismaService,
-
     private readonly evolutionService: EvolutionService,
   ) {}
 
-  /**
-   * Sincroniza un rango inclusivo de especies.
-   *
-   * Ejemplo:
-   * syncRange(1, 151)
-   *
-   * sincronizara:
-   * 1, 2, 3, ..., 151
-   */
   async syncRange(startId: number, endId: number) {
-    // Validacion basica del rango recibido.
     if (startId < 1 || endId < startId) {
       throw new Error('Invalid Pokemon synchronization range');
     }
 
-    // Registramos el inicio de la ejecucion.
-    const syncRun = await this.prisma.syncRun.create({
-      data: {
-        source: 'pokeapi',
-        status: 'running',
-      },
-    });
+    let syncRunId: string;
 
     try {
-      /**
-       * Se sincronizan las especies de forma secuencial.
-       *
-       * Por ahora evitamos concurrencia para:
-       * - reducir carga sobre PokeAPI
-       * - simplificar errores
-       * - facilitar debugging
-       *
-       * Mas adelante se podra introducir concurrencia controlada.
-       */
+      const syncRun = await this.prisma.syncRun.create({
+        data: {
+          source: 'pokeapi',
+          status: 'running',
+          active: true,
+        },
+      });
+
+      syncRunId = syncRun.id;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'A Pokemon synchronization is already running',
+        );
+      }
+
+      throw error;
+    }
+
+    try {
       const syncContext = createPokemonSyncContext();
 
       for (let externalId = startId; externalId <= endId; externalId++) {
         await this.pokemonService.syncSpecies(externalId, syncContext);
       }
 
-      /**
-       * FASE 2: sincronizacion de cadenas evolutivas.
-       *
-       * Primero terminamos de persistir todas las especies del rango.
-       * De esta forma EvolutionService tiene la mayor cantidad posible
-       * de especies disponibles al momento de crear las transiciones.
-       */
       const synchronizedSpecies = await this.prisma.pokemonSpecies.findMany({
         where: {
           externalId: {
@@ -79,13 +67,6 @@ export class PokemonSyncService {
         },
       });
 
-      /**
-       * Varias especies pueden compartir exactamente la misma cadena.
-       *
-       * Ejemplo: Bulbasaur, Ivysaur y Venusaur apuntan todos a la cadena 1.
-       *
-       * Set evita solicitar y procesar esa cadena tres veces.
-       */
       const evolutionChainExternalIds = new Set<number>();
 
       for (const species of synchronizedSpecies) {
@@ -94,43 +75,40 @@ export class PokemonSyncService {
         }
       }
 
-      // Cada cadena se sincroniza una sola vez durante esta ejecucion.
       for (const evolutionChainExternalId of evolutionChainExternalIds) {
         await this.evolutionService.syncEvolutionChain(
           evolutionChainExternalId,
         );
       }
 
-      // Si todas las especies se sincronizaron correctamente, se marca la ejecucion como completada.
       return await this.prisma.syncRun.update({
         where: {
-          id: syncRun.id,
+          id: syncRunId,
         },
         data: {
           status: 'completed',
+          active: null,
           finishedAt: new Date(),
         },
       });
     } catch (error) {
-      // Convertimos cualquier tipo de error a un mensaje persistible.
       const message =
         error instanceof Error
           ? error.message
           : 'Unknown synchronization error';
 
-      // Se registra el fallo antes de propagar el error.
       await this.prisma.syncRun.update({
         where: {
-          id: syncRun.id,
+          id: syncRunId,
         },
         data: {
           status: 'failed',
+          active: null,
           finishedAt: new Date(),
           error: message,
         },
       });
 
-      // El error vuelve a subir para que el caller sepa que la sincronizacion no termino correctamente.
       throw error;
     }
   }

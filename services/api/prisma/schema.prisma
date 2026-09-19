@@ -536,6 +536,7 @@ model SyncRun {
   id         String    @id @default(uuid())
   source     String
   status     String
+  active     Boolean?  @unique
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
   error      String?

@@ -12,6 +12,8 @@ import { SyncPokemonRangeDto } from './dto/sync-pokemon-range.dto.js';
 import { Query } from '@nestjs/common';
 import { GetPokemonQueryDto } from './dto/get-pokemon-query.dto.js';
 import { EncounterService } from './encounter.service.js';
+import { UseGuards } from '@nestjs/common';
+import { SyncApiKeyGuard } from './sync-api-key.guard.js';
 
 @Controller('pokemon')
 export class PokemonController {
@@ -90,6 +92,7 @@ export class PokemonController {
    * }
    */
   @Post('sync')
+  @UseGuards(SyncApiKeyGuard)
   syncRange(@Body() body: SyncPokemonRangeDto) {
     return this.pokemonSyncService.syncRange(body.startId, body.endId);
   }

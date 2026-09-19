@@ -2,6 +2,8 @@ import type {
   PokemonGenerationOption,
   PokemonListResponse,
   PokemonTypeOption,
+  PokemonDetail,
+  PokemonEncountersResponse,
 } from '../types/pokemon';
 
 const API_URL = 'http://localhost:3000';
@@ -143,4 +145,48 @@ export async function getPokemonGenerations(): Promise<
   return response.json() as Promise<
     PokemonGenerationOption[]
   >;
+}
+
+export async function getPokemonDetail(
+  pokemonId: number,
+  variantId?: number,
+): Promise<PokemonDetail> {
+  const path =
+    variantId !== undefined
+      ? `/pokemon/${pokemonId}/variants/${variantId}`
+      : `/pokemon/${pokemonId}`;
+
+  const response = await fetch(
+    `${API_URL}${path}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      'Failed to fetch Pokemon',
+    );
+  }
+
+  return response.json() as Promise<PokemonDetail>;
+}
+
+export async function getPokemonEncounters(
+  pokemonId: number,
+  variantId?: number,
+): Promise<PokemonEncountersResponse> {
+  const path =
+    variantId !== undefined
+      ? `/pokemon/${pokemonId}/variants/${variantId}/encounters`
+      : `/pokemon/${pokemonId}/encounters`;
+
+  const response = await fetch(
+    `${API_URL}${path}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      'Failed to fetch Pokemon encounters',
+    );
+  }
+
+  return response.json() as Promise<PokemonEncountersResponse>;
 }

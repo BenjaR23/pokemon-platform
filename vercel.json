@@ -6,7 +6,8 @@
       "framework": "vite"
     },
     "api": {
-      "root": "services/api"
+      "root": "services/api",
+      "entrypoint": "src/main.ts"
     }
   },
   "rewrites": [

@@ -5,6 +5,10 @@ import {
 } from 'react';
 
 import {
+  useSearchParams,
+} from 'react-router-dom';
+
+import {
   getPokemon,
   getPokemonGenerations,
   getPokemonTypes,
@@ -35,6 +39,11 @@ import type {
 } from '../types/pokemon';
 
 export function PokedexPage() {
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
+
   const {
     activeProfile,
   } = useProfile();
@@ -54,6 +63,38 @@ export function PokedexPage() {
             .externalId,
       )
       .join(',') ?? '';
+
+  const page =
+    parsePositiveInteger(
+      searchParams.get('page'),
+    ) ?? 1;
+
+  const search =
+    searchParams.get(
+      'search',
+    ) ?? '';
+
+  const selectedType =
+    searchParams.get(
+      'type',
+    ) ?? '';
+
+  const selectedGeneration =
+    searchParams.get(
+      'generation',
+    ) ?? '';
+
+  const objectiveOnly =
+    searchParams.get(
+      'objectiveOnly',
+    ) === 'true';
+
+  const order =
+    parseOrder(
+      searchParams.get(
+        'order',
+      ),
+    );
 
   const [
     pokemon,
@@ -80,14 +121,11 @@ export function PokedexPage() {
   >(null);
 
   const [
-    search,
-    setSearch,
-  ] = useState('');
-
-  const [
     debouncedSearch,
     setDebouncedSearch,
-  ] = useState('');
+  ] = useState(
+    search.trim(),
+  );
 
   const [
     types,
@@ -97,11 +135,6 @@ export function PokedexPage() {
   >([]);
 
   const [
-    selectedType,
-    setSelectedType,
-  ] = useState('');
-
-  const [
     generations,
     setGenerations,
   ] = useState<
@@ -109,48 +142,11 @@ export function PokedexPage() {
   >([]);
 
   const [
-    selectedGeneration,
-    setSelectedGeneration,
-  ] = useState('');
-
-  const [
-    objectiveOnly,
-    setObjectiveOnly,
-  ] = useState(false);
-
-  const [
-    order,
-    setOrder,
-  ] =
-    useState<PokedexOrder>(
-      'POKEDEX',
-    );
-
-  const [
     recommendationAssignments,
     setRecommendationAssignments,
   ] = useState<
     RecommendationAssignment[]
   >([]);
-
-  const [
-    page,
-    setPage,
-  ] = useState(() => {
-    const savedPage =
-      Number(
-        localStorage.getItem(
-          'pokedex-page',
-        ),
-      );
-
-    return Number.isInteger(
-      savedPage,
-    ) &&
-      savedPage > 0
-      ? savedPage
-      : 1;
-  });
 
   const objectiveGenerationIds =
     useMemo(() => {
@@ -233,13 +229,6 @@ export function PokedexPage() {
       );
     };
   }, [search]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      'pokedex-page',
-      page.toString(),
-    );
-  }, [page]);
 
   useEffect(() => {
     async function fetchFilters() {
@@ -370,9 +359,24 @@ export function PokedexPage() {
             data.pagination
               .totalPages
         ) {
-          setPage(
-            data.pagination
-              .totalPages,
+          setSearchParams(
+            (current) => {
+              const next =
+                new URLSearchParams(
+                  current,
+                );
+
+              setPageParam(
+                next,
+                data.pagination
+                  .totalPages,
+              );
+
+              return next;
+            },
+            {
+              replace: true,
+            },
           );
         }
       } catch {
@@ -397,7 +401,83 @@ export function PokedexPage() {
     objectiveMaxPokemonId,
     effectiveOrder,
     activeProfileId,
+    setSearchParams,
   ]);
+
+  function updateFilter(
+    key: string,
+    value: string | null,
+  ) {
+    setSearchParams(
+      (current) => {
+        const next =
+          new URLSearchParams(
+            current,
+          );
+
+        if (
+          value === null ||
+          value === ''
+        ) {
+          next.delete(key);
+        } else {
+          next.set(
+            key,
+            value,
+          );
+        }
+
+        next.delete(
+          'page',
+        );
+
+        return next;
+      },
+    );
+  }
+
+  function updatePage(
+    newPage: number,
+  ) {
+    setSearchParams(
+      (current) => {
+        const next =
+          new URLSearchParams(
+            current,
+          );
+
+        setPageParam(
+          next,
+          newPage,
+        );
+
+        return next;
+      },
+    );
+  }
+
+  function updateObjectiveOnly(
+    enabled: boolean,
+  ) {
+    updateFilter(
+      'objectiveOnly',
+      enabled
+        ? 'true'
+        : null,
+    );
+  }
+
+  function updateOrder(
+    value: PokedexOrder,
+  ) {
+    updateFilter(
+      'order',
+      value ===
+        'RECOMMENDATION'
+        ? 'recommendation'
+        : null,
+    );
+  }
 
   const isSearchPending =
     search.trim() !==
@@ -428,13 +508,11 @@ export function PokedexPage() {
               <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-950 p-1">
                 <button
                   type="button"
-                  onClick={() => {
-                    setObjectiveOnly(
+                  onClick={() =>
+                    updateObjectiveOnly(
                       false,
-                    );
-
-                    setPage(1);
-                  }}
+                    )
+                  }
                   className={
                     !objectiveOnly
                       ? 'rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100'
@@ -446,13 +524,11 @@ export function PokedexPage() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setObjectiveOnly(
+                  onClick={() =>
+                    updateObjectiveOnly(
                       true,
-                    );
-
-                    setPage(1);
-                  }}
+                    )
+                  }
                   className={
                     objectiveOnly
                       ? 'rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-100'
@@ -489,40 +565,31 @@ export function PokedexPage() {
             }
             onSearchChange={(
               value,
-            ) => {
-              setSearch(
+            ) =>
+              updateFilter(
+                'search',
                 value,
-              );
-
-              setPage(1);
-            }}
+              )
+            }
             onTypeChange={(
               value,
-            ) => {
-              setSelectedType(
+            ) =>
+              updateFilter(
+                'type',
                 value,
-              );
-
-              setPage(1);
-            }}
+              )
+            }
             onGenerationChange={(
               value,
-            ) => {
-              setSelectedGeneration(
+            ) =>
+              updateFilter(
+                'generation',
                 value,
-              );
-
-              setPage(1);
-            }}
-            onOrderChange={(
-              value,
-            ) => {
-              setOrder(
-                value,
-              );
-
-              setPage(1);
-            }}
+              )
+            }
+            onOrderChange={
+              updateOrder
+            }
           />
         </header>
 
@@ -554,19 +621,68 @@ export function PokedexPage() {
 
         {!showLoader &&
           !error && (
-            <Pagination
-              page={
-                page
-              }
-              totalPages={
-                totalPages
-              }
-              onPageChange={
-                setPage
-              }
-            />
-          )}
+          <Pagination
+            page={
+              page
+            }
+            totalPages={
+              totalPages
+            }
+            onPageChange={
+              updatePage
+            }
+          />
+        )}
       </div>
     </main>
+  );
+}
+
+function parsePositiveInteger(
+  value: string | null,
+) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed =
+    Number(value);
+
+  if (
+    !Number.isInteger(
+      parsed,
+    ) ||
+    parsed < 1
+  ) {
+    return null;
+  }
+
+  return parsed;
+}
+
+function parseOrder(
+  value: string | null,
+): PokedexOrder {
+  return value ===
+    'recommendation'
+    ? 'RECOMMENDATION'
+    : 'POKEDEX';
+}
+
+function setPageParam(
+  params: URLSearchParams,
+  page: number,
+) {
+  if (page <= 1) {
+    params.delete(
+      'page',
+    );
+
+    return;
+  }
+
+  params.set(
+    'page',
+    page.toString(),
   );
 }

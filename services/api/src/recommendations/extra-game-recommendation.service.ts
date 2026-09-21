@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { RecommendationCoverageService } from './recommendation-coverage.service';
@@ -59,11 +59,18 @@ export class ExtraGameRecommendationService {
 
     const candidates: CandidateGame[] = [];
 
-    for (const game of games) {
-      const coverage = await this.coverageService.getGameCoverage(
-        game.externalId,
-      );
+    const coverageResults =
+      games.length > 0
+        ? await this.coverageService.getGamesCoverage(
+            games.map((g) => g.externalId),
+          )
+        : [];
 
+    const gamesByExternalId = new Map(
+      games.map((game) => [game.externalId, game]),
+    );
+
+    for (const coverage of coverageResults) {
       const coveredSpeciesIds = new Set<number>();
 
       for (const species of coverage.species) {
@@ -74,6 +81,14 @@ export class ExtraGameRecommendationService {
 
       if (coveredSpeciesIds.size === 0) {
         continue;
+      }
+
+      const game = gamesByExternalId.get(coverage.game.externalId);
+
+      if (!game) {
+        throw new NotFoundException(
+          `Game not found: ${coverage.game.externalId}`,
+        );
       }
 
       candidates.push({

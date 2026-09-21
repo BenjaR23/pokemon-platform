@@ -9,13 +9,11 @@ describe('RecommendationCoverageService', () => {
 
   const prisma = {
     game: {
-      findUnique: jest.fn(),
+      findMany: jest.fn(),
     },
-
     pokemonAcquisition: {
       findMany: jest.fn(),
     },
-
     evolution: {
       findMany: jest.fn(),
     },
@@ -38,17 +36,37 @@ describe('RecommendationCoverageService', () => {
   });
 
   function mockGame(generation = 3, versionGroupId = 'vg-1') {
-    prisma.game.findUnique.mockResolvedValue({
-      id: 'game-1',
-      externalId: 10,
-      name: 'firered',
-      versionGroupId,
-      versionGroup: {
-        generation: {
-          externalId: generation,
+    prisma.game.findMany.mockResolvedValue([
+      {
+        id: 'game-1',
+        externalId: 10,
+        name: 'firered',
+        versionGroupId,
+        versionGroup: {
+          generation: {
+            externalId: generation,
+          },
         },
       },
-    });
+    ]);
+  }
+
+  function acquisition(
+    speciesId: string,
+    externalId: number,
+    name: string,
+    gameId = 'game-1',
+  ) {
+    return {
+      gameId,
+      variety: {
+        species: {
+          id: speciesId,
+          externalId,
+          name,
+        },
+      },
+    };
   }
 
   function evolution(
@@ -57,6 +75,7 @@ describe('RecommendationCoverageService', () => {
     externalId: number,
     name: string,
     versionGroupId: string | null = null,
+    generationExternalId: number | null = 1,
   ) {
     return {
       fromSpeciesId,
@@ -64,15 +83,14 @@ describe('RecommendationCoverageService', () => {
         id: toSpeciesId,
         externalId,
         name,
-      },
-      rules:
-        versionGroupId === null
-          ? []
-          : [
-              {
-                versionGroupId,
+        generation:
+          generationExternalId === null
+            ? null
+            : {
+                externalId: generationExternalId,
               },
-            ],
+      },
+      rules: versionGroupId === null ? [] : [{ versionGroupId }],
     };
   }
 
@@ -80,15 +98,7 @@ describe('RecommendationCoverageService', () => {
     mockGame();
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'species-1',
-            externalId: 1,
-            name: 'bulbasaur',
-          },
-        },
-      },
+      acquisition('species-1', 1, 'bulbasaur'),
     ]);
 
     prisma.evolution.findMany.mockResolvedValue([]);
@@ -112,14 +122,15 @@ describe('RecommendationCoverageService', () => {
     mockGame();
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([]);
-
     prisma.evolution.findMany.mockResolvedValue([]);
 
     await service.getGameCoverage(10);
 
     expect(prisma.pokemonAcquisition.findMany).toHaveBeenCalledWith({
       where: {
-        gameId: 'game-1',
+        gameId: {
+          in: ['game-1'],
+        },
         acquisitionType: {
           code: {
             in: ['encounter'],
@@ -127,6 +138,7 @@ describe('RecommendationCoverageService', () => {
         },
       },
       select: {
+        gameId: true,
         variety: {
           select: {
             species: {
@@ -146,15 +158,7 @@ describe('RecommendationCoverageService', () => {
     mockGame();
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'species-1',
-            externalId: 1,
-            name: 'bulbasaur',
-          },
-        },
-      },
+      acquisition('species-1', 1, 'bulbasaur'),
     ]);
 
     prisma.evolution.findMany.mockResolvedValue([
@@ -185,15 +189,7 @@ describe('RecommendationCoverageService', () => {
     mockGame();
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'species-1',
-            externalId: 1,
-            name: 'bulbasaur',
-          },
-        },
-      },
+      acquisition('species-1', 1, 'bulbasaur'),
     ]);
 
     prisma.evolution.findMany.mockResolvedValue([
@@ -232,24 +228,8 @@ describe('RecommendationCoverageService', () => {
     mockGame();
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'species-1',
-            externalId: 1,
-            name: 'bulbasaur',
-          },
-        },
-      },
-      {
-        variety: {
-          species: {
-            id: 'species-2',
-            externalId: 2,
-            name: 'ivysaur',
-          },
-        },
-      },
+      acquisition('species-1', 1, 'bulbasaur'),
+      acquisition('species-2', 2, 'ivysaur'),
     ]);
 
     prisma.evolution.findMany.mockResolvedValue([
@@ -276,15 +256,7 @@ describe('RecommendationCoverageService', () => {
     mockGame(3, 'vg-1');
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'species-1',
-            externalId: 1,
-            name: 'bulbasaur',
-          },
-        },
-      },
+      acquisition('species-1', 1, 'bulbasaur'),
     ]);
 
     prisma.evolution.findMany.mockResolvedValue([
@@ -304,15 +276,7 @@ describe('RecommendationCoverageService', () => {
     mockGame(3, 'vg-1');
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'species-1',
-            externalId: 1,
-            name: 'bulbasaur',
-          },
-        },
-      },
+      acquisition('species-1', 1, 'bulbasaur'),
     ]);
 
     prisma.evolution.findMany.mockResolvedValue([
@@ -338,15 +302,7 @@ describe('RecommendationCoverageService', () => {
     mockGame();
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'species-1',
-            externalId: 1,
-            name: 'bulbasaur',
-          },
-        },
-      },
+      acquisition('species-1', 1, 'bulbasaur'),
     ]);
 
     prisma.evolution.findMany.mockResolvedValue([
@@ -356,6 +312,9 @@ describe('RecommendationCoverageService', () => {
           id: 'species-2',
           externalId: 2,
           name: 'ivysaur',
+          generation: {
+            externalId: 1,
+          },
         },
         rules: [
           {
@@ -374,70 +333,66 @@ describe('RecommendationCoverageService', () => {
     });
   });
 
-  it('only loads evolutions introduced up to the game generation', async () => {
+  it('excludes evolutions introduced after the game generation', async () => {
     mockGame(3, 'vg-3');
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'primeape',
-            externalId: 57,
-            name: 'primeape',
-          },
-        },
-      },
+      acquisition('species-57', 57, 'primeape'),
     ]);
 
-    prisma.evolution.findMany.mockResolvedValue([]);
+    prisma.evolution.findMany.mockResolvedValue([
+      evolution('species-57', 'species-999', 999, 'later-mon', null, 5),
+    ]);
 
-    await service.getGameCoverage(10);
+    const result = await service.getGameCoverage(10);
 
-    expect(prisma.evolution.findMany).toHaveBeenCalledWith({
-      where: {
-        toSpecies: {
-          generation: {
-            externalId: {
-              lte: 3,
-            },
-          },
-        },
+    expect(result.species).toEqual([
+      {
+        externalId: 57,
+        name: 'primeape',
+        source: 'DIRECT',
       },
-      select: {
-        fromSpeciesId: true,
-        toSpecies: {
-          select: {
-            id: true,
-            externalId: true,
-            name: true,
-          },
-        },
-        rules: {
-          select: {
-            versionGroupId: true,
-          },
-        },
+    ]);
+  });
+
+  it('excludes evolutions when the target species has no known generation', async () => {
+    mockGame(3, 'vg-3');
+
+    prisma.pokemonAcquisition.findMany.mockResolvedValue([
+      acquisition('species-57', 57, 'primeape'),
+    ]);
+
+    prisma.evolution.findMany.mockResolvedValue([
+      evolution(
+        'species-57',
+        'species-999',
+        999,
+        'unknown-gen-mon',
+        null,
+        null,
+      ),
+    ]);
+
+    const result = await service.getGameCoverage(10);
+
+    expect(result.species).toEqual([
+      {
+        externalId: 57,
+        name: 'primeape',
+        source: 'DIRECT',
       },
-    });
+    ]);
   });
 
   it('accepts an evolution introduced before the game generation', async () => {
     mockGame(4, 'vg-4');
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'species-123',
-            externalId: 123,
-            name: 'scyther',
-          },
-        },
-      },
+      acquisition('species-123', 123, 'scyther'),
     ]);
 
     prisma.evolution.findMany.mockResolvedValue([
-      evolution('species-123', 'species-212', 212, 'scizor'),
+      evolution('species-123', 'species-212', 212, 'scizor', null, 2),
     ]);
 
     const result = await service.getGameCoverage(10);
@@ -449,19 +404,11 @@ describe('RecommendationCoverageService', () => {
     });
   });
 
-  it('loads the evolution graph with a single query', async () => {
+  it('loads the evolution graph with a single query, without a per-game filter', async () => {
     mockGame();
 
     prisma.pokemonAcquisition.findMany.mockResolvedValue([
-      {
-        variety: {
-          species: {
-            id: 'species-1',
-            externalId: 1,
-            name: 'bulbasaur',
-          },
-        },
-      },
+      acquisition('species-1', 1, 'bulbasaur'),
     ]);
 
     prisma.evolution.findMany.mockResolvedValue([
@@ -472,6 +419,29 @@ describe('RecommendationCoverageService', () => {
     const result = await service.getGameCoverage(10);
 
     expect(prisma.evolution.findMany).toHaveBeenCalledTimes(1);
+
+    expect(prisma.evolution.findMany).toHaveBeenCalledWith({
+      select: {
+        fromSpeciesId: true,
+        toSpecies: {
+          select: {
+            id: true,
+            externalId: true,
+            name: true,
+            generation: {
+              select: {
+                externalId: true,
+              },
+            },
+          },
+        },
+        rules: {
+          select: {
+            versionGroupId: true,
+          },
+        },
+      },
+    });
 
     expect(result.species).toEqual([
       {
@@ -492,8 +462,77 @@ describe('RecommendationCoverageService', () => {
     ]);
   });
 
+  it('calculates coverage for multiple games in a single batch', async () => {
+    prisma.game.findMany.mockResolvedValue([
+      {
+        id: 'game-1',
+        externalId: 10,
+        name: 'firered',
+        versionGroupId: 'vg-1',
+        versionGroup: {
+          generation: {
+            externalId: 3,
+          },
+        },
+      },
+      {
+        id: 'game-2',
+        externalId: 11,
+        name: 'leafgreen',
+        versionGroupId: 'vg-1',
+        versionGroup: {
+          generation: {
+            externalId: 3,
+          },
+        },
+      },
+    ]);
+
+    prisma.pokemonAcquisition.findMany.mockResolvedValue([
+      acquisition('species-1', 1, 'bulbasaur', 'game-1'),
+      acquisition('species-4', 4, 'charmander', 'game-2'),
+    ]);
+
+    prisma.evolution.findMany.mockResolvedValue([]);
+
+    await expect(service.getGamesCoverage([10, 11])).resolves.toEqual([
+      {
+        game: {
+          externalId: 10,
+          name: 'firered',
+        },
+        species: [
+          {
+            externalId: 1,
+            name: 'bulbasaur',
+            source: 'DIRECT',
+          },
+        ],
+      },
+      {
+        game: {
+          externalId: 11,
+          name: 'leafgreen',
+        },
+        species: [
+          {
+            externalId: 4,
+            name: 'charmander',
+            source: 'DIRECT',
+          },
+        ],
+      },
+    ]);
+
+    expect(prisma.game.findMany).toHaveBeenCalledTimes(1);
+
+    expect(prisma.pokemonAcquisition.findMany).toHaveBeenCalledTimes(1);
+
+    expect(prisma.evolution.findMany).toHaveBeenCalledTimes(1);
+  });
+
   it('throws when game does not exist', async () => {
-    prisma.game.findUnique.mockResolvedValue(null);
+    prisma.game.findMany.mockResolvedValue([]);
 
     await expect(service.getGameCoverage(999999)).rejects.toBeInstanceOf(
       NotFoundException,
@@ -502,5 +541,24 @@ describe('RecommendationCoverageService', () => {
     expect(prisma.pokemonAcquisition.findMany).not.toHaveBeenCalled();
 
     expect(prisma.evolution.findMany).not.toHaveBeenCalled();
+  });
+
+  it('caches coverage so repeated calls do not re-query the database', async () => {
+    mockGame();
+
+    prisma.pokemonAcquisition.findMany.mockResolvedValue([
+      acquisition('species-1', 1, 'bulbasaur'),
+    ]);
+
+    prisma.evolution.findMany.mockResolvedValue([]);
+
+    await service.getGameCoverage(10);
+    await service.getGameCoverage(10);
+
+    expect(prisma.game.findMany).toHaveBeenCalledTimes(1);
+
+    expect(prisma.pokemonAcquisition.findMany).toHaveBeenCalledTimes(1);
+
+    expect(prisma.evolution.findMany).toHaveBeenCalledTimes(1);
   });
 });

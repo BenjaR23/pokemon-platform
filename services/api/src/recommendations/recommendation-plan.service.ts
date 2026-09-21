@@ -98,10 +98,25 @@ export class RecommendationPlanService {
       source: 'DIRECT' | 'EVOLUTION';
     }> = [];
 
+    const coverageResults =
+      orderedGames.length > 0
+        ? await this.coverageService.getGamesCoverage(
+            orderedGames.map((pg) => pg.game.externalId),
+          )
+        : [];
+
+    const coverageByGameId = new Map(
+      coverageResults.map((coverage) => [coverage.game.externalId, coverage]),
+    );
+
     for (const profileGame of orderedGames) {
-      const coverage = await this.coverageService.getGameCoverage(
-        profileGame.game.externalId,
-      );
+      const coverage = coverageByGameId.get(profileGame.game.externalId);
+
+      if (!coverage) {
+        throw new NotFoundException(
+          `Coverage not found for game: ${profileGame.game.externalId}`,
+        );
+      }
 
       const coverageBySpecies = new Map(
         coverage.species.map((species) => [species.externalId, species]),
@@ -122,11 +137,8 @@ export class RecommendationPlanService {
 
           game: {
             externalId: profileGame.game.externalId,
-
             name: profileGame.game.name,
-
             role: profileGame.role,
-
             position: profileGame.position,
           },
 
